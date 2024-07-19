@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/spf13/viper"
 )
 
 type TokenGenerator interface {
@@ -13,6 +12,7 @@ type TokenGenerator interface {
 }
 
 type TokenGeneratorJWT struct {
+	Secret string
 }
 
 func (t *TokenGeneratorJWT) GenerateToken(userID int, expiresAtUnixTime int64) (string, error) {
@@ -22,7 +22,7 @@ func (t *TokenGeneratorJWT) GenerateToken(userID int, expiresAtUnixTime int64) (
 	})
 
 	// Sign and get the complete encoded token as a string using the secret
-	tokenString, err := token.SignedString([]byte(viper.GetString("jwt.secret")))
+	tokenString, err := token.SignedString([]byte(t.Secret))
 	if err != nil {
 		return "", err
 	}
@@ -36,7 +36,7 @@ func (t *TokenGeneratorJWT) ValidateToken(tokenStr string) error {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 
-		return []byte(viper.GetString("jwt.secret")), nil
+		return []byte(t.Secret), nil
 	})
 
 	if err != nil {

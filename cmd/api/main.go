@@ -48,13 +48,13 @@ func main() {
 	}
 
 	dbrepo := database.NewPostgresDBRepo(db)
-
+	jwtSecret := viper.GetString("jwt.secret")
 	app := Configs{
 		DB:                dbrepo,
 		Logger:            logger,
-		Verifier:          verify.NewUserVerifier(),
+		Verifier:          verify.NewUserVerifier(viper.GetInt("verification.code_length"), viper.GetInt("verification.max_retries")),
 		PasswordEncryptor: verify.PasswordEncryptorBcrypt{},
-		TokenGenerator:    &verify.TokenGeneratorJWT{},
+		TokenGenerator:    &verify.TokenGeneratorJWT{Secret: jwtSecret},
 	}
 
 	srv := http.Server{

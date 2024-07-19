@@ -11,6 +11,7 @@ type jsonResponse struct {
 	Data    any    `json:"data,omitempty"`
 }
 
+// SuccessResponse creates a standard JSON API success struct based on the JSend specification
 func SuccessResponse(data any) *jsonResponse {
 	return &jsonResponse{
 		Status: "success",
@@ -18,6 +19,7 @@ func SuccessResponse(data any) *jsonResponse {
 	}
 }
 
+// SuccessResponse creates a standard JSON API fail struct based on the JSend specification
 func FailResponse(data any) *jsonResponse {
 	return &jsonResponse{
 		Status: "fail",
@@ -25,6 +27,7 @@ func FailResponse(data any) *jsonResponse {
 	}
 }
 
+// SuccessResponse creates a standard JSON API error struct based on the JSend specification
 func ErrorResponse(message string) *jsonResponse {
 	return &jsonResponse{
 		Status:  "error",

@@ -5,8 +5,6 @@ import (
 	"errors"
 	"io"
 	"math"
-
-	"github.com/spf13/viper"
 )
 
 const (
@@ -20,35 +18,34 @@ type UserVerifier interface {
 }
 
 type UserVerification struct {
+	CodeLength     int
+	MaximumRetries int
 }
 
-func NewUserVerifier() *UserVerification {
-	return &UserVerification{}
-}
-
-func (v *UserVerification) maxCodeLength() int {
-	max := viper.GetInt("verification.code_length")
-	if max == 0 {
-		max = DefaultMaxCodeLength
+func NewUserVerifier(codeLength, maximumRetries int) *UserVerification {
+	if codeLength == 0 {
+		codeLength = DefaultMaxCodeLength
 	}
 
 	// users.verification_code table column has a max length of 255
-	max = int(math.Min(float64(max), 255))
+	codeLength = int(math.Min(float64(codeLength), 255))
 
-	return max
+	if maximumRetries == 0 {
+		maximumRetries = DefaultMaxRetries
+	}
+
+	return &UserVerification{
+		CodeLength:     codeLength,
+		MaximumRetries: maximumRetries,
+	}
 }
 
 func (v *UserVerification) MaxRetries() int {
-	max := viper.GetInt("verification.max_retries")
-	if max == 0 {
-		max = DefaultMaxRetries
-	}
-
-	return max
+	return v.MaximumRetries
 }
 
 func (v *UserVerification) GenerateVerificationCode() (string, error) {
-	max := v.maxCodeLength()
+	max := v.CodeLength
 	buf := make([]byte, max)
 	_, err := io.ReadAtLeast(rand.Reader, buf, max)
 	if err != nil {
