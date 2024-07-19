@@ -3,6 +3,7 @@ package database
 import (
 	"auth_api/internal/models"
 	"context"
+	"database/sql"
 	"errors"
 )
 
@@ -13,6 +14,10 @@ type MockDBRepo struct {
 }
 
 func (r *MockDBRepo) GetUser(ctx context.Context, email string) (*models.User, error) {
+	if r.TestUser.UserID == 0 {
+		return nil, sql.ErrNoRows
+	}
+
 	user := models.User{
 		UserID:     r.TestUser.UserID,
 		Email:      email,
@@ -34,7 +39,7 @@ func (r *MockDBRepo) GetUsers(ctx context.Context, email string) ([]models.User,
 }
 
 func (r *MockDBRepo) CreateUser(ctx context.Context, user *models.User) error {
-	if r.TestUser.UserID == 99 {
+	if r.TestUser.UserID == 2 {
 		return errors.New("CreateUser failed")
 	}
 
@@ -47,7 +52,7 @@ func (r *MockDBRepo) CreateUser(ctx context.Context, user *models.User) error {
 }
 
 func (r *MockDBRepo) UpdateUser(ctx context.Context, user models.User) error {
-	if user.UserID == 99 {
+	if user.UserID == 0 {
 		return errors.New("UpdateUser failed")
 	}
 
@@ -55,14 +60,27 @@ func (r *MockDBRepo) UpdateUser(ctx context.Context, user models.User) error {
 }
 
 func (r *MockDBRepo) DeleteUser(ctx context.Context, email string) (bool, error) {
+	if email == "fail@gmail.com" {
+		return false, errors.New("DeleteUser failed")
+	}
+	if email == "notfound@gmail.com" {
+		return false, nil
+	}
 	return true, nil
 }
 
 func (r *MockDBRepo) InsertOrUpdateVerification(ctx context.Context, verification models.Verification) error {
+	if verification.Email == "fail@gmail.com" {
+		return errors.New("InsertOrUpdateVerification failed")
+	}
 	return nil
 }
 
 func (r *MockDBRepo) GetVerification(ctx context.Context, email string) (*models.Verification, error) {
+	if r.TestVerification.Email == "fail@gmail.com" {
+		return nil, sql.ErrNoRows
+	}
+
 	verification := models.Verification{
 		Email:             r.TestVerification.Email,
 		VerificationCode:  r.TestVerification.VerificationCode,

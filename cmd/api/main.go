@@ -3,6 +3,7 @@ package main
 import (
 	"auth_api/internal/storage"
 	"auth_api/internal/storage/database"
+	"auth_api/internal/verify"
 	"fmt"
 	"log"
 	"log/slog"
@@ -15,8 +16,11 @@ import (
 const webPort = "80"
 
 type Configs struct {
-	DB     storage.DBRepo
-	Logger *slog.Logger
+	DB                storage.DBRepo
+	Logger            *slog.Logger
+	Verifier          verify.UserVerifier
+	PasswordEncryptor verify.PasswordEncryptor
+	TokenGenerator    verify.TokenGenerator
 }
 
 func main() {
@@ -46,8 +50,11 @@ func main() {
 	dbrepo := database.NewPostgresDBRepo(db)
 
 	app := Configs{
-		DB:     dbrepo,
-		Logger: logger,
+		DB:                dbrepo,
+		Logger:            logger,
+		Verifier:          verify.NewUserVerifier(),
+		PasswordEncryptor: verify.PasswordEncryptorBcrypt{},
+		TokenGenerator:    &verify.TokenGeneratorJWT{},
 	}
 
 	srv := http.Server{

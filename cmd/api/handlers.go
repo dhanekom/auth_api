@@ -3,7 +3,6 @@ package main
 import (
 	"auth_api/internal/models"
 	"auth_api/internal/validator"
-	"auth_api/internal/verify"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -11,9 +10,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/spf13/viper"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // RegisterHandler create a user account with a hashed password
@@ -62,7 +58,7 @@ func (app *Configs) RegisterHandler(c *gin.Context) {
 	}
 
 	// Hash and salt password
-	hashedPasswordBytes, err := bcrypt.GenerateFromPassword([]byte(sv.Password), 14)
+	hashedPasswordBytes, err := app.PasswordEncryptor.GenerateHashedPassword(sv.Password)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse(err.Error()))
 		return
@@ -119,7 +115,7 @@ func (app *Configs) GenerateVerificationCodeHandler(c *gin.Context) {
 		return
 	}
 
-	code, err := verify.GenerateVerificationCode(verify.MaxCodeLength())
+	code, err := app.Verifier.GenerateVerificationCode()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse(err.Error()))
 		return
@@ -129,7 +125,7 @@ func (app *Configs) GenerateVerificationCodeHandler(c *gin.Context) {
 		Email:             requestBody.Email,
 		VerificationCode:  code,
 		ExpiresAt:         time.Now().Add(time.Hour * 24),
-		AttemptsRemaining: verify.MaxRetries(),
+		AttemptsRemaining: app.Verifier.MaxRetries(),
 	}
 
 	if err := app.DB.InsertOrUpdateVerification(c.Request.Context(), verification); err != nil {
@@ -196,7 +192,7 @@ func (app *Configs) VerifyUserHandler(c *gin.Context) {
 			app.Logger.Error(err.Error())
 		}
 
-		c.JSON(http.StatusBadRequest, ErrorResponse("verificaiton code has expired"))
+		c.JSON(http.StatusBadRequest, ErrorResponse("verification code has expired"))
 		return
 	}
 
@@ -262,26 +258,17 @@ func (app *Configs) TokenHandler(c *gin.Context) {
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password))
+	err = app.PasswordEncryptor.CompareHashAndPassword([]byte(user.Password), []byte(body.Password))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse("invalid email or password"))
 		return
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": user.UserID,
-		"exp": time.Now().Add(time.Hour * 24).Unix(),
-	})
-
-	// Sign and get the complete encoded token as a string using the secret
-	tokenString, err := token.SignedString([]byte(viper.GetString("jwt.secret")))
+	tokenString, err := app.TokenGenerator.GenerateToken(user.UserID, time.Now().Add(time.Hour*24).Unix())
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse("failed to create token"))
+		c.JSON(http.StatusBadRequest, ErrorResponse("auth token generation failed"))
 		return
 	}
-
-	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("Authorization", tokenString, 24*60*60, "", "", false, true)
 
 	c.JSON(http.StatusOK, SuccessResponse(gin.H{"token": tokenString}))
 }
@@ -307,7 +294,7 @@ func (app *Configs) DeleteUserHandler(c *gin.Context) {
 
 	recordsDeleted, err := app.DB.DeleteUser(c.Request.Context(), body.Email)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse(err.Error()))
+		c.JSON(http.StatusInternalServerError, ErrorResponse(err.Error()))
 		return
 	}
 

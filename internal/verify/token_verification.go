@@ -14,7 +14,19 @@ const (
 	DefaultMaxRetries    = 3
 )
 
-func MaxCodeLength() int {
+type UserVerifier interface {
+	MaxRetries() int
+	GenerateVerificationCode() (string, error)
+}
+
+type UserVerification struct {
+}
+
+func NewUserVerifier() *UserVerification {
+	return &UserVerification{}
+}
+
+func (v *UserVerification) maxCodeLength() int {
 	max := viper.GetInt("verification.code_length")
 	if max == 0 {
 		max = DefaultMaxCodeLength
@@ -26,7 +38,7 @@ func MaxCodeLength() int {
 	return max
 }
 
-func MaxRetries() int {
+func (v *UserVerification) MaxRetries() int {
 	max := viper.GetInt("verification.max_retries")
 	if max == 0 {
 		max = DefaultMaxRetries
@@ -35,7 +47,8 @@ func MaxRetries() int {
 	return max
 }
 
-func GenerateVerificationCode(max int) (string, error) {
+func (v *UserVerification) GenerateVerificationCode() (string, error) {
+	max := v.maxCodeLength()
 	buf := make([]byte, max)
 	_, err := io.ReadAtLeast(rand.Reader, buf, max)
 	if err != nil {

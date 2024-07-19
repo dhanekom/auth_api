@@ -17,16 +17,21 @@ var (
 )
 
 type Validator struct {
+	keys      []string
 	ErrorList map[string]string
 }
 
 func (v Validator) Error() string {
 	sb := strings.Builder{}
 	delim := ""
-	for k, v := range v.ErrorList {
-		sb.WriteString(fmt.Sprintf("%s%s: %s", delim, k, v))
-		delim = ", "
+
+	for _, key := range v.keys {
+		if value, ok := v.ErrorList[key]; ok {
+			sb.WriteString(fmt.Sprintf("%s%s: %s", delim, key, value))
+			delim = ", "
+		}
 	}
+
 	return sb.String()
 }
 
@@ -40,6 +45,7 @@ func (v *Validator) AddError(key, message string) {
 	}
 
 	if _, exists := v.ErrorList[key]; !exists {
+		v.keys = append(v.keys, key)
 		v.ErrorList[key] = message
 	}
 }
