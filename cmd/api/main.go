@@ -62,7 +62,6 @@ func main() {
 		Handler: app.routes(),
 	}
 
-	// fmt.Printf("Starting servers on port %s\n", webPort)
 	app.Logger.Info(fmt.Sprintf("Starting servers on port %s", webPort))
 
 	err = srv.ListenAndServe()
