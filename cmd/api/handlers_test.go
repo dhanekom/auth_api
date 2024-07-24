@@ -140,13 +140,13 @@ func TestTokenHandler(t *testing.T) {
 		status  int
 		want    string
 	}{
-		// {desc: "invalid request json body", reqBody: ``, status: http.StatusBadRequest, want: `{"status":"error","message":"unable to parse json body"}`},
-		// {desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required, password: required"}`},
-		// {desc: "invalid email", reqBody: `{"email": "invalidemail", "password": "1234"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`},
-		// {desc: "user does not exist", reqBody: `{"email": "test@gmail.com", "password": "1234"}`, status: http.StatusUnauthorized, want: `{"status":"error","message":"invalid email or password"}`},
-		// {desc: "user not verified", reqBody: `{"email": "test@gmail.com", "password": "1234"}`, status: http.StatusUnauthorized, want: `{"status":"error","message":"user not verified"}`},
-		// {desc: "invalid password", reqBody: `{"email": "test@gmail.com", "password": "1234"}`, status: http.StatusUnauthorized, want: `{"status":"error","message":"invalid email or password"}`},
-		// {desc: "auth token generation failed", reqBody: `{"email": "test@gmail.com", "password": "validpass"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"auth token generation failed"}`},
+		{desc: "invalid request json body", reqBody: ``, status: http.StatusBadRequest, want: `{"status":"error","message":"unable to parse json body"}`},
+		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required, password: required"}`},
+		{desc: "invalid email", reqBody: `{"email": "invalidemail", "password": "1234"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`},
+		{desc: "user does not exist", reqBody: `{"email": "notexit@gmail.com", "password": "1234"}`, status: http.StatusUnauthorized, want: `{"status":"error","message":"invalid email or password"}`},
+		{desc: "user not verified", reqBody: `{"email": "unverified@gmail.com", "password": "1234"}`, status: http.StatusUnauthorized, want: `{"status":"error","message":"user not verified"}`},
+		{desc: "invalid password", reqBody: `{"email": "invalidpassword@gmail.com", "password": "invalid"}`, status: http.StatusUnauthorized, want: `{"status":"error","message":"invalid email or password"}`},
+		{desc: "auth token generation failed", reqBody: `{"email": "authcodefailed@gmail.com", "password": "validpass"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"auth token generation failed"}`},
 		{desc: "success", reqBody: `{"email": "verified@gmail.com", "password": "1234"}`, status: http.StatusOK, want: fmt.Sprintf(`{"status":"success","data":{"token":"%s"}}`, TestToken)},
 	}
 
@@ -172,45 +172,42 @@ func TestTokenHandler(t *testing.T) {
 	}
 }
 
-// func TestDeleteUserHandler(t *testing.T) {
-// 	tests := []struct {
-// 		desc    string
-// 		reqBody string
-// 		status  int
-// 		want    string
-// 		db      database.MockDBRepo
-// 	}{
-// 		{desc: "success", reqBody: `{"email": "test@gmail.com", "password": "1234"}`, status: http.StatusOK, want: `{"status":"success"}`, db: database.MockDBRepo{}},
-// 		{desc: "invalid request json body", reqBody: ``, status: http.StatusBadRequest, want: `{"status":"error","message":"unable to parse json body"}`, db: database.MockDBRepo{}},
-// 		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required"}`, db: database.MockDBRepo{}},
-// 		{desc: "invalid email", reqBody: `{"email": "invalidemail", "password": "1234"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`, db: database.MockDBRepo{}},
-// 		{desc: "delete user failed", reqBody: `{"email": "fail@gmail.com", "password": "1234"}`, status: http.StatusInternalServerError, want: `{"status":"error","message":"DeleteUser failed"}`, db: database.MockDBRepo{}},
-// 		{desc: "user not found", reqBody: `{"email": "notfound@gmail.com", "password": "1234"}`, status: http.StatusOK, want: `{"status":"success","data":{"message":"user not found"}}`, db: database.MockDBRepo{}},
-// 	}
+func TestDeleteUserHandler(t *testing.T) {
+	tests := []struct {
+		desc    string
+		reqBody string
+		status  int
+		want    string
+	}{
+		{desc: "invalid request json body", reqBody: ``, status: http.StatusBadRequest, want: `{"status":"error","message":"unable to parse json body"}`},
+		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required"}`},
+		{desc: "invalid email", reqBody: `{"email": "invalidemail", "password": "1234"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`},
+		{desc: "delete user failed", reqBody: `{"email": "fail@gmail.com", "password": "1234"}`, status: http.StatusInternalServerError, want: `{"status":"error","message":"DeleteUser failed"}`},
+		// {desc: "user not found", reqBody: `{"email": "notfound@gmail.com", "password": "1234"}`, status: http.StatusOK, want: `{"status":"success","data":{"message":"user not found"}}`},
+		// {desc: "success", reqBody: `{"email": "test@gmail.com", "password": "1234"}`, status: http.StatusOK, want: `{"status":"success"}`},
+	}
 
-// 	for _, test := range tests {
-// 		t.Run(test.desc, func(t *testing.T) {
-// 			app := setupApp(&test.db)
-// 			path := "/api/auth/user"
-// 			router := gin.New()
-// 			router.DELETE(path, app.DeleteUserHandler)
+	ctx := context.Background()
+	app := setupApp(t, ctx)
 
-// 			body := strings.NewReader(test.reqBody)
-// 			req := httptest.NewRequest(http.MethodDelete, path, body)
-// 			w := httptest.NewRecorder()
-// 			router.ServeHTTP(w, req)
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
 
-// 			resp := w.Result()
-// 			json, err := io.ReadAll(resp.Body)
-// 			if err != nil {
-// 				t.Errorf("didn't expect error but got %s", err)
-// 			}
+			req, _ := http.NewRequest(http.MethodDelete, "/api/auth/user", strings.NewReader(test.reqBody))
+			w := httptest.NewRecorder()
+			app.server.Handler.ServeHTTP(w, req)
 
-// 			assert.Equal(t, test.status, resp.StatusCode)
-// 			assert.Equal(t, test.want, string(json))
-// 		})
-// 	}
-// }
+			resp := w.Result()
+			json, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Errorf("didn't expect error but got %s", err)
+			}
+
+			assert.Equal(t, test.status, resp.StatusCode)
+			assert.Equal(t, test.want, string(json))
+		})
+	}
+}
 
 func GetTestEnv(key string) string {
 	switch key {
@@ -313,7 +310,7 @@ func (t *MockTokenGenerator) Setup(secret string) {
 }
 
 func (t *MockTokenGenerator) GenerateToken(userID int, expiresAtUnixTime int64) (string, error) {
-	if userID == 2 {
+	if userID == 7 {
 		return "", errors.New("GenerateToken - unable to generate token")
 	}
 	return TestToken, nil
