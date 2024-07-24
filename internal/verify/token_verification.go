@@ -13,16 +13,17 @@ const (
 )
 
 type UserVerifier interface {
+	Setup(codeLength, maximumRetries int)
 	MaxRetries() int
 	GenerateVerificationCode() (string, error)
 }
 
 type UserVerification struct {
-	CodeLength     int
-	MaximumRetries int
+	codeLength     int
+	maximumRetries int
 }
 
-func NewUserVerifier(codeLength, maximumRetries int) *UserVerification {
+func (v *UserVerification) Setup(codeLength, maximumRetries int) {
 	if codeLength == 0 {
 		codeLength = DefaultMaxCodeLength
 	}
@@ -34,18 +35,16 @@ func NewUserVerifier(codeLength, maximumRetries int) *UserVerification {
 		maximumRetries = DefaultMaxRetries
 	}
 
-	return &UserVerification{
-		CodeLength:     codeLength,
-		MaximumRetries: maximumRetries,
-	}
+	v.codeLength = codeLength
+	v.maximumRetries = maximumRetries
 }
 
 func (v *UserVerification) MaxRetries() int {
-	return v.MaximumRetries
+	return v.maximumRetries
 }
 
 func (v *UserVerification) GenerateVerificationCode() (string, error) {
-	max := v.CodeLength
+	max := v.codeLength
 	buf := make([]byte, max)
 	_, err := io.ReadAtLeast(rand.Reader, buf, max)
 	if err != nil {

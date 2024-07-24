@@ -8,11 +8,16 @@ import (
 )
 
 type TokenGenerator interface {
+	Setup(secret string)
 	GenerateToken(userID int, expiresAtUnixTime int64) (string, error)
 }
 
 type TokenGeneratorJWT struct {
-	Secret string
+	secret string
+}
+
+func (t *TokenGeneratorJWT) Setup(secret string) {
+	t.secret = secret
 }
 
 func (t *TokenGeneratorJWT) GenerateToken(userID int, expiresAtUnixTime int64) (string, error) {
@@ -22,7 +27,7 @@ func (t *TokenGeneratorJWT) GenerateToken(userID int, expiresAtUnixTime int64) (
 	})
 
 	// Sign and get the complete encoded token as a string using the secret
-	tokenString, err := token.SignedString([]byte(t.Secret))
+	tokenString, err := token.SignedString([]byte(t.secret))
 	if err != nil {
 		return "", err
 	}
@@ -36,7 +41,7 @@ func (t *TokenGeneratorJWT) ValidateToken(tokenStr string) error {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 
-		return []byte(t.Secret), nil
+		return []byte(t.secret), nil
 	})
 
 	if err != nil {

@@ -2,7 +2,6 @@ package database
 
 import (
 	"auth_api/internal/models"
-	"auth_api/internal/storage"
 	"context"
 	"fmt"
 	"time"
@@ -30,7 +29,7 @@ type PostgresDBRepo struct {
 	db *sqlx.DB
 }
 
-func NewPostgresDBRepo(db *sqlx.DB) storage.DBRepo {
+func NewPostgresDBRepo(db *sqlx.DB) *PostgresDBRepo {
 	return &PostgresDBRepo{
 		db: db,
 	}

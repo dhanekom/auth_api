@@ -1,4 +1,4 @@
-CREATE TABLE if not exists users (
+CREATE TABLE if not exists public.users (
   user_id SERIAL PRIMARY KEY,
   email varchar(255) not null,
   password text not null,
@@ -10,7 +10,7 @@ CREATE TABLE if not exists users (
 
 CREATE INDEX if not exists idx_users_email ON users(email);
 
-CREATE TABLE if not exists verification (
+CREATE TABLE if not exists public.verification (
   email varchar(255) PRIMARY KEY,
   verification_code varchar(255) not null,
   expires_at TIMESTAMP not null,

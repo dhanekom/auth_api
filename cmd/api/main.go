@@ -1,71 +1,32 @@
 package main
 
 import (
-	"auth_api/internal/storage"
-	"auth_api/internal/storage/database"
 	"auth_api/internal/verify"
+	"context"
 	"fmt"
 	"log"
-	"log/slog"
-	"net/http"
 	"os"
 
-	"github.com/spf13/viper"
+	"github.com/joho/godotenv"
 )
 
-const webPort = "80"
-
-type Configs struct {
-	DB                storage.DBRepo
-	Logger            *slog.Logger
-	Verifier          verify.UserVerifier
-	PasswordEncryptor verify.PasswordEncryptor
-	TokenGenerator    verify.TokenGenerator
-}
-
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-
-	// read configs
-	viper.SetConfigName("config") // name of config file (without extension)
-	viper.SetConfigType("yaml")   // REQUIRED if the config file does not have the extension in the name
-	viper.AddConfigPath(".")      // optionally look for config in the working directory
-	err := viper.ReadInConfig()   // Find and read the config file
-	if err != nil {               // Handle errors reading the config file
-		panic(fmt.Errorf("fatal error config file: %w", err))
-	}
-
-	host := viper.GetString("db.host")
-	port := viper.GetString("db.port")
-	dbname := viper.GetString("db.name")
-	username := viper.GetString("db.username")
-	password := viper.GetString("db.password")
-
-	// connect to DB
-	db, err := database.ConnectToPostgres(host, port, dbname, username, password)
+	err := godotenv.Load()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Error loading .env file")
 	}
 
-	dbrepo := database.NewPostgresDBRepo(db)
-	jwtSecret := viper.GetString("jwt.secret")
-	app := Configs{
-		DB:                dbrepo,
-		Logger:            logger,
-		Verifier:          verify.NewUserVerifier(viper.GetInt("verification.code_length"), viper.GetInt("verification.max_retries")),
-		PasswordEncryptor: verify.PasswordEncryptorBcrypt{},
-		TokenGenerator:    &verify.TokenGeneratorJWT{Secret: jwtSecret},
-	}
-
-	srv := http.Server{
-		Addr:    fmt.Sprintf(":%s", webPort),
-		Handler: app.routes(),
-	}
-
-	app.Logger.Info(fmt.Sprintf("Starting servers on port %s", webPort))
-
-	err = srv.ListenAndServe()
+	ctx := context.Background()
+	app, err := NewServer(os.Stdout, os.Getenv, "", &verify.UserVerification{}, &verify.PasswordEncryptorBcrypt{}, &verify.TokenGeneratorJWT{})
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintf(os.Stdout, "%s\n", err)
+		os.Exit(1)
+	}
+
+	defer app.db.Close()
+
+	if err := run(ctx, app); err != nil {
+		fmt.Fprintf(os.Stdout, "%s\n", err)
+		os.Exit(1)
 	}
 }
