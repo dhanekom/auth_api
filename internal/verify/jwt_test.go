@@ -7,6 +7,7 @@ import (
 
 func TestGenerateToken(t *testing.T) {
 	tokenGenerator := TokenGeneratorJWT{}
+	tokenGenerator.Setup("secret")
 	dateTimeStr := "2999-12-30T01:23:45.678Z"
 	myTime, err := time.Parse(time.RFC3339, dateTimeStr)
 

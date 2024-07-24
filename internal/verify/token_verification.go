@@ -24,14 +24,14 @@ type UserVerification struct {
 }
 
 func (v *UserVerification) Setup(codeLength, maximumRetries int) {
-	if codeLength == 0 {
+	if codeLength <= 0 {
 		codeLength = DefaultMaxCodeLength
 	}
 
 	// users.verification_code table column has a max length of 255
 	codeLength = int(math.Min(float64(codeLength), 255))
 
-	if maximumRetries == 0 {
+	if maximumRetries <= 0 {
 		maximumRetries = DefaultMaxRetries
 	}
 

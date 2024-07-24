@@ -33,13 +33,13 @@ func (r EnvReader) GetInt(key string, defaultValue ...int) int {
 	return value
 }
 
-func (r EnvReader) GetBool(key string, defaultValue ...bool) bool {
-	value, err := strconv.ParseBool(r.reader(key))
-	if err != nil {
-		if len(defaultValue) > 0 {
-			return defaultValue[0]
-		}
-		return false
-	}
-	return value
-}
+// func (r EnvReader) GetBool(key string, defaultValue ...bool) bool {
+// 	value, err := strconv.ParseBool(r.reader(key))
+// 	if err != nil {
+// 		if len(defaultValue) > 0 {
+// 			return defaultValue[0]
+// 		}
+// 		return false
+// 	}
+// 	return value
+// }
