@@ -182,9 +182,8 @@ func TestDeleteUserHandler(t *testing.T) {
 		{desc: "invalid request json body", reqBody: ``, status: http.StatusBadRequest, want: `{"status":"error","message":"unable to parse json body"}`},
 		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required"}`},
 		{desc: "invalid email", reqBody: `{"email": "invalidemail", "password": "1234"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`},
-		{desc: "delete user failed", reqBody: `{"email": "fail@gmail.com", "password": "1234"}`, status: http.StatusInternalServerError, want: `{"status":"error","message":"DeleteUser failed"}`},
-		// {desc: "user not found", reqBody: `{"email": "notfound@gmail.com", "password": "1234"}`, status: http.StatusOK, want: `{"status":"success","data":{"message":"user not found"}}`},
-		// {desc: "success", reqBody: `{"email": "test@gmail.com", "password": "1234"}`, status: http.StatusOK, want: `{"status":"success"}`},
+		{desc: "user not found", reqBody: `{"email": "notfound@gmail.com", "password": "1234"}`, status: http.StatusOK, want: `{"status":"success","data":{"message":"user not found"}}`},
+		{desc: "success", reqBody: `{"email": "verified@gmail.com", "password": "1234"}`, status: http.StatusOK, want: `{"status":"success"}`},
 	}
 
 	ctx := context.Background()
