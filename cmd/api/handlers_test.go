@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -31,10 +32,9 @@ func TestRegisterHandler(t *testing.T) {
 		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required, password: required"}`},
 		{desc: "invalid email", reqBody: `{"email": "invalidemail", "password": "1234"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`},
 		{desc: "user already exists", reqBody: `{"email": "unverified@gmail.com", "password": "1234"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user already exists"}`},
-		{desc: "success", reqBody: `{"email": "test@gmail.com", "password": "1234"}`, status: http.StatusOK, want: `{"status":"success","data":{"message":"successfully created user"}}`},
+		{desc: "success", reqBody: `{"email": "notexist@gmail.com", "password": "1234"}`, status: http.StatusOK, want: `{"status":"success","data":{"message":"successfully created user"}}`},
 	}
 	ctx := context.Background()
-
 	app := setupApp(t, ctx)
 
 	for _, test := range tests {
@@ -56,181 +56,121 @@ func TestRegisterHandler(t *testing.T) {
 	}
 }
 
-// func TestGenerateVerificationCodeHandler(t *testing.T) {
-// 	tests := []struct {
-// 		desc    string
-// 		reqBody string
-// 		status  int
-// 		want    string
-// 		db      database.MockDBRepo
-// 	}{
-// 		{desc: "success", reqBody: `{"email": "test@gmail.com"}`, status: http.StatusOK, want: `{"status":"success","data":{"verification_code":"ABCDEF"}}`, db: database.MockDBRepo{
-// 			TestUser: models.User{
-// 				UserID:     1,
-// 				Email:      "test@gmail.com",
-// 				Password:   "1234",
-// 				IsVerified: false,
-// 			},
-// 		}},
-// 		{desc: "already verified", reqBody: `{"email": "test@gmail.com"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user already verified"}`, db: database.MockDBRepo{
-// 			TestUser: models.User{
-// 				UserID:     1,
-// 				Email:      "test@gmail.com",
-// 				Password:   "1234",
-// 				IsVerified: true,
-// 			},
-// 		}},
-// 		{desc: "invalid request json body", reqBody: ``, status: http.StatusBadRequest, want: `{"status":"error","message":"unable to parse json body"}`, db: database.MockDBRepo{}},
-// 		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required"}`, db: database.MockDBRepo{}},
-// 		{desc: "invalid email", reqBody: `{"email": "invalidemail", "password": "1234"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`, db: database.MockDBRepo{}},
-// 		{desc: "user does not exist", reqBody: `{"email": "test@gmail.com"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user does not exist"}`, db: database.MockDBRepo{
-// 			TestUser: models.User{
-// 				UserID: 0,
-// 			},
-// 		}},
-// 		{desc: "unable to insert verification record", reqBody: `{"email": "fail@gmail.com"}`, status: http.StatusInternalServerError, want: `{"status":"error","message":"InsertOrUpdateVerification failed"}`, db: database.MockDBRepo{
-// 			TestUser: models.User{
-// 				UserID: 1,
-// 			},
-// 		}},
-// 	}
+func TestGenerateVerificationCodeHandler(t *testing.T) {
+	tests := []struct {
+		desc    string
+		reqBody string
+		status  int
+		want    string
+	}{
+		{desc: "invalid request json body", reqBody: ``, status: http.StatusBadRequest, want: `{"status":"error","message":"unable to parse json body"}`},
+		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required"}`},
+		{desc: "invalid email", reqBody: `{"email": "invalidemail", "password": "1234"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`},
+		{desc: "user does not exist", reqBody: `{"email": "notexist@gmail.com"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user does not exist"}`},
+		{desc: "already verified", reqBody: `{"email": "verified@gmail.com"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user already verified"}`},
+		{desc: "success", reqBody: `{"email": "unverified@gmail.com"}`, status: http.StatusOK, want: `{"status":"success","data":{"verification_code":"ABCDEF"}}`},
+	}
 
-// 	for _, test := range tests {
-// 		t.Run(test.desc, func(t *testing.T) {
-// 			app := setupApp(&test.db)
-// 			path := "/api/auth/verify"
-// 			router := gin.New()
-// 			router.GET(path, app.GenerateVerificationCodeHandler)
+	ctx := context.Background()
+	app := setupApp(t, ctx)
 
-// 			body := strings.NewReader(test.reqBody)
-// 			req := httptest.NewRequest(http.MethodGet, path, body)
-// 			w := httptest.NewRecorder()
-// 			router.ServeHTTP(w, req)
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
 
-// 			resp := w.Result()
-// 			json, err := io.ReadAll(resp.Body)
-// 			if err != nil {
-// 				t.Errorf("didn't expect error but got %s", err)
-// 			}
+			req, _ := http.NewRequest(http.MethodGet, "/api/auth/verify", strings.NewReader(test.reqBody))
+			w := httptest.NewRecorder()
+			app.server.Handler.ServeHTTP(w, req)
 
-// 			assert.Equal(t, test.status, resp.StatusCode)
-// 			assert.Equal(t, test.want, string(json))
-// 		})
-// 	}
-// }
+			resp := w.Result()
+			json, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Errorf("didn't expect error but got %s", err)
+			}
 
-// func TestVerifyUserHandler(t *testing.T) {
-// 	tests := []struct {
-// 		desc    string
-// 		reqBody string
-// 		status  int
-// 		want    string
-// 		db      database.MockDBRepo
-// 	}{
-// 		{desc: "success", reqBody: `{"email": "test@gmail.com", "verification_code": "ABCDEF"}`, status: http.StatusOK, want: `{"status":"success"}`, db: database.MockDBRepo{
-// 			TestUser:         models.User{UserID: 1, Email: "test@gmail.com"},
-// 			TestVerification: models.Verification{Email: "test@gmail.com", VerificationCode: "ABCDEF", ExpiresAt: time.Now().Add(time.Hour), AttemptsRemaining: 3},
-// 		}},
-// 		{desc: "invalid request json body", reqBody: ``, status: http.StatusBadRequest, want: `{"status":"error","message":"unable to parse json body"}`, db: database.MockDBRepo{}},
-// 		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required, verification_code: required"}`, db: database.MockDBRepo{}},
-// 		{desc: "invalid email", reqBody: `{"email": "invalidemail", "verification_code": "ABCDEF"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`, db: database.MockDBRepo{}},
-// 		{desc: "user does not exist", reqBody: `{"email": "test@gmail.com", "verification_code": "ABCDEF"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user does not exist"}`, db: database.MockDBRepo{
-// 			TestUser: models.User{UserID: 0, Email: "test@gmail.com"},
-// 		}},
-// 		{desc: "user does not exist", reqBody: `{"email": "fail@gmail.com", "verification_code": "ABCDEF"}`, status: http.StatusInternalServerError, want: `{"status":"error","message":"no verification data found for user fail@gmail.com"}`, db: database.MockDBRepo{
-// 			TestUser:         models.User{UserID: 1, Email: "fail@gmail.com"},
-// 			TestVerification: models.Verification{Email: "fail@gmail.com"},
-// 		}},
-// 		{desc: "verification code has expired", reqBody: `{"email": "test@gmail.com", "verification_code": "ABCDEF"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"verification code has expired"}`, db: database.MockDBRepo{
-// 			TestUser:         models.User{UserID: 1, Email: "test@gmail.com"},
-// 			TestVerification: models.Verification{Email: "test@gmail.com", VerificationCode: "ABCDEF", ExpiresAt: time.Now().Add(time.Hour * -1), AttemptsRemaining: 3},
-// 		}},
-// 		{desc: "too many attempts", reqBody: `{"email": "test@gmail.com", "verification_code": "ABCDEF"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"verification code has expired"}`, db: database.MockDBRepo{
-// 			TestUser:         models.User{UserID: 1, Email: "test@gmail.com"},
-// 			TestVerification: models.Verification{Email: "test@gmail.com", VerificationCode: "ABCDEF", ExpiresAt: time.Now().Add(time.Hour), AttemptsRemaining: 0},
-// 		}},
-// 		{desc: "invalid verification code", reqBody: `{"email": "test@gmail.com", "verification_code": "INVALID"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"invalid verification code"}`, db: database.MockDBRepo{
-// 			TestUser:         models.User{UserID: 1, Email: "test@gmail.com"},
-// 			TestVerification: models.Verification{Email: "test@gmail.com", VerificationCode: "ABCDEF", ExpiresAt: time.Now().Add(time.Hour), AttemptsRemaining: 3},
-// 		}},
-// 	}
+			assert.Equal(t, test.status, resp.StatusCode)
+			assert.Equal(t, test.want, string(json))
+		})
+	}
+}
 
-// 	for _, test := range tests {
-// 		t.Run(test.desc, func(t *testing.T) {
-// 			app := setupApp(&test.db)
-// 			path := "/api/auth/verify"
-// 			router := gin.New()
-// 			router.POST(path, app.VerifyUserHandler)
+func TestVerifyUserHandler(t *testing.T) {
+	tests := []struct {
+		desc    string
+		reqBody string
+		status  int
+		want    string
+	}{
+		{desc: "invalid request json body", reqBody: ``, status: http.StatusBadRequest, want: `{"status":"error","message":"unable to parse json body"}`},
+		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required, verification_code: required"}`},
+		{desc: "invalid email", reqBody: `{"email": "invalidemail", "verification_code": "ABCDEF"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`},
+		{desc: "user does not exist", reqBody: `{"email": "notexist@gmail.com", "verification_code": "ABCDEF"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user does not exist"}`},
+		{desc: "no verification data", reqBody: `{"email": "noverification@gmail.com", "verification_code": "ABCDEF"}`, status: http.StatusInternalServerError, want: `{"status":"error","message":"no verification data found for user noverification@gmail.com"}`},
+		{desc: "verification code has expired", reqBody: `{"email": "expiredverification@gmail.com", "verification_code": "ABCDEF"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"verification code has expired"}`},
+		{desc: "too many attempts", reqBody: `{"email": "toomanyattempts@gmail.com", "verification_code": "ABCDEF"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"verification code has expired"}`},
+		{desc: "invalid verification code", reqBody: `{"email": "unverified@gmail.com", "verification_code": "INVALID"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"invalid verification code"}`},
+		{desc: "success", reqBody: `{"email": "unverified@gmail.com", "verification_code": "ABCDEF"}`, status: http.StatusOK, want: `{"status":"success"}`},
+	}
 
-// 			body := strings.NewReader(test.reqBody)
-// 			req := httptest.NewRequest(http.MethodPost, path, body)
-// 			w := httptest.NewRecorder()
-// 			router.ServeHTTP(w, req)
+	ctx := context.Background()
+	app := setupApp(t, ctx)
 
-// 			resp := w.Result()
-// 			json, err := io.ReadAll(resp.Body)
-// 			if err != nil {
-// 				t.Errorf("didn't expect error but got %s", err)
-// 			}
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
 
-// 			assert.Equal(t, test.status, resp.StatusCode)
-// 			assert.Equal(t, test.want, string(json))
-// 		})
-// 	}
-// }
+			req, _ := http.NewRequest(http.MethodPost, "/api/auth/verify", strings.NewReader(test.reqBody))
+			w := httptest.NewRecorder()
+			app.server.Handler.ServeHTTP(w, req)
 
-// func TestTokenHandler(t *testing.T) {
-// 	tests := []struct {
-// 		desc    string
-// 		reqBody string
-// 		status  int
-// 		want    string
-// 		db      database.MockDBRepo
-// 	}{
-// 		{desc: "success", reqBody: `{"email": "test@gmail.com", "password": "1234"}`, status: http.StatusOK, want: fmt.Sprintf(`{"status":"success","data":{"token":"%s"}}`, TestToken), db: database.MockDBRepo{
-// 			TestUser:         models.User{UserID: 1, Email: "test@gmail.com", Password: "validpass", IsVerified: true},
-// 			TestVerification: models.Verification{Email: "test@gmail.com", VerificationCode: "ABCDEF", ExpiresAt: time.Now().Add(time.Hour), AttemptsRemaining: 3},
-// 		}},
-// 		{desc: "invalid request json body", reqBody: ``, status: http.StatusBadRequest, want: `{"status":"error","message":"unable to parse json body"}`, db: database.MockDBRepo{}},
-// 		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required, password: required"}`, db: database.MockDBRepo{}},
-// 		{desc: "invalid email", reqBody: `{"email": "invalidemail", "password": "1234"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`, db: database.MockDBRepo{}},
-// 		{desc: "user does not exist", reqBody: `{"email": "test@gmail.com", "password": "1234"}`, status: http.StatusUnauthorized, want: `{"status":"error","message":"invalid email or password"}`, db: database.MockDBRepo{
-// 			TestUser: models.User{UserID: 0, Email: "test@gmail.com"},
-// 		}},
-// 		{desc: "user not verified", reqBody: `{"email": "test@gmail.com", "password": "1234"}`, status: http.StatusUnauthorized, want: `{"status":"error","message":"user not verified"}`, db: database.MockDBRepo{
-// 			TestUser: models.User{UserID: 1, Email: "test@gmail.com", Password: "validpass", IsVerified: false},
-// 		}},
-// 		{desc: "invalid password", reqBody: `{"email": "test@gmail.com", "password": "1234"}`, status: http.StatusUnauthorized, want: `{"status":"error","message":"invalid email or password"}`, db: database.MockDBRepo{
-// 			TestUser: models.User{UserID: 1, Email: "test@gmail.com", Password: "invalidpass", IsVerified: true},
-// 		}},
-// 		{desc: "auth token generation failed", reqBody: `{"email": "test@gmail.com", "password": "validpass"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"auth token generation failed"}`, db: database.MockDBRepo{
-// 			TestUser: models.User{UserID: 2, Email: "test@gmail.com", Password: "validpass", IsVerified: true},
-// 		}},
-// 	}
+			resp := w.Result()
+			json, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Errorf("didn't expect error but got %s", err)
+			}
 
-// 	for _, test := range tests {
-// 		t.Run(test.desc, func(t *testing.T) {
-// 			app := setupApp(&test.db)
-// 			path := "/api/auth/token"
-// 			router := gin.New()
-// 			router.POST(path, app.TokenHandler)
+			assert.Equal(t, test.status, resp.StatusCode)
+			assert.Equal(t, test.want, string(json))
+		})
+	}
+}
 
-// 			body := strings.NewReader(test.reqBody)
-// 			req := httptest.NewRequest(http.MethodPost, path, body)
-// 			w := httptest.NewRecorder()
-// 			router.ServeHTTP(w, req)
+func TestTokenHandler(t *testing.T) {
+	tests := []struct {
+		desc    string
+		reqBody string
+		status  int
+		want    string
+	}{
+		// {desc: "invalid request json body", reqBody: ``, status: http.StatusBadRequest, want: `{"status":"error","message":"unable to parse json body"}`},
+		// {desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required, password: required"}`},
+		// {desc: "invalid email", reqBody: `{"email": "invalidemail", "password": "1234"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`},
+		// {desc: "user does not exist", reqBody: `{"email": "test@gmail.com", "password": "1234"}`, status: http.StatusUnauthorized, want: `{"status":"error","message":"invalid email or password"}`},
+		// {desc: "user not verified", reqBody: `{"email": "test@gmail.com", "password": "1234"}`, status: http.StatusUnauthorized, want: `{"status":"error","message":"user not verified"}`},
+		// {desc: "invalid password", reqBody: `{"email": "test@gmail.com", "password": "1234"}`, status: http.StatusUnauthorized, want: `{"status":"error","message":"invalid email or password"}`},
+		// {desc: "auth token generation failed", reqBody: `{"email": "test@gmail.com", "password": "validpass"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"auth token generation failed"}`},
+		{desc: "success", reqBody: `{"email": "verified@gmail.com", "password": "1234"}`, status: http.StatusOK, want: fmt.Sprintf(`{"status":"success","data":{"token":"%s"}}`, TestToken)},
+	}
 
-// 			resp := w.Result()
-// 			json, err := io.ReadAll(resp.Body)
-// 			if err != nil {
-// 				t.Errorf("didn't expect error but got %s", err)
-// 			}
+	ctx := context.Background()
+	app := setupApp(t, ctx)
 
-// 			assert.Equal(t, test.status, resp.StatusCode)
-// 			assert.Equal(t, test.want, string(json))
-// 		})
-// 	}
-// }
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+
+			req, _ := http.NewRequest(http.MethodPost, "/api/auth/token", strings.NewReader(test.reqBody))
+			w := httptest.NewRecorder()
+			app.server.Handler.ServeHTTP(w, req)
+
+			resp := w.Result()
+			json, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Errorf("didn't expect error but got %s", err)
+			}
+
+			assert.Equal(t, test.status, resp.StatusCode)
+			assert.Equal(t, test.want, string(json))
+		})
+	}
+}
 
 // func TestDeleteUserHandler(t *testing.T) {
 // 	tests := []struct {
@@ -288,21 +228,6 @@ func GetTestEnv(key string) string {
 }
 
 func setupApp(t *testing.T, ctx context.Context) *App {
-	// var b bytes.Buffer
-	// logWriter := bufio.NewWriter(&b)
-	// app := Configs{
-	// 	DB:     dbRepo,
-	// 	Logger: slog.New(slog.NewJSONHandler(logWriter, nil)),
-	// 	Verifier: &MockUserVerifier{
-	// 		maxRetries:       3,
-	// 		verificationCode: "ABCDEF",
-	// 	},
-	// 	PasswordEncryptor: &MockPasswordEncryptor{},
-	// 	TokenGenerator:    &MockTokenGenerator{},
-	// }
-
-	// return &app
-
 	t.Helper()
 
 	pgContainer, err := postgres.Run(
