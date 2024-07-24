@@ -1,0 +1,21 @@
+meta {
+  name: Generate verification code
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseURL}}/api/auth/verify
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "test@gmail.com"
+  }
+}
