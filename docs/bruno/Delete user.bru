@@ -7,11 +7,15 @@ meta {
 delete {
   url: {{baseURL}}/api/auth/user
   body: json
-  auth: none
+  auth: bearer
 }
 
 headers {
   Content-Type: application/json
+}
+
+auth:bearer {
+  token: 
 }
 
 body:json {
