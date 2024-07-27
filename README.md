@@ -22,7 +22,7 @@ The application supports .env files(see a sample .env file below)
 ```
 AUTH_HOST_ADDR=
 AUTH_HOST_PORT=80
-AUTH_DB_CONNECTION_STRING==postgres://dbname:password@127.0.0.1:5432/auth_db?sslmode=disable
+AUTH_DB_CONNECTION_STRING=postgres://dbname:password@127.0.0.1:5432/auth_db?sslmode=disable
 AUTH_JWT_SECRET=supersecretkey
 AUTH_VERIFICATION_CODE_LENGTH=6
 AUTH_VERIFICATION_MAX_RETRIES=3
