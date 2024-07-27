@@ -5,6 +5,7 @@ import (
 	"auth_api/internal/storage/database"
 	"auth_api/internal/verify"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -22,7 +23,9 @@ type Configs struct {
 	Logger            *slog.Logger
 	Verifier          verify.UserVerifier
 	PasswordEncryptor verify.PasswordEncryptor
-	TokenGenerator    verify.TokenGenerator
+	TokenUtils        verify.TokenUtils
+	UserTokenSecret   string
+	AdminTokenSecret  string
 }
 
 type App struct {
@@ -31,7 +34,7 @@ type App struct {
 	db      *sqlx.DB
 }
 
-func NewServer(w io.Writer, getenv func(string) string, dbConnStr string, verifier verify.UserVerifier, passwordEncryptor verify.PasswordEncryptor, tokenGenerator verify.TokenGenerator) (*App, error) {
+func NewServer(w io.Writer, getenv func(string) string, dbConnStr string, verifier verify.UserVerifier, passwordEncryptor verify.PasswordEncryptor, TokenUtils verify.TokenUtils) (*App, error) {
 	logger := slog.New(slog.NewJSONHandler(w, nil))
 
 	EnvReader := NewEnvReader(getenv)
@@ -39,17 +42,25 @@ func NewServer(w io.Writer, getenv func(string) string, dbConnStr string, verifi
 	hostAddr := EnvReader.GetString("AUTH_HOST_ADDR")
 	hostPort := EnvReader.GetString("AUTH_HOST_PORT", "80")
 
-	// dbHost := EnvReader.GetString("AUTH_DB_HOST")
-	// dbPort := EnvReader.GetString("AUTH_DB_PORT")
-	// dbName := EnvReader.GetString("AUTH_DB_NAME")
-	// dbUsername := EnvReader.GetString("AUTH_DB_USERNAME")
-	// dbPassword := EnvReader.GetString("AUTH_DB_PASSWORD")
 	dbConnectionStr := dbConnStr
 	if dbConnectionStr == "" {
 		dbConnectionStr = EnvReader.GetString("AUTH_DB_CONNECTION_STRING")
 	}
 
 	jwtSecret := EnvReader.GetString("AUTH_JWT_SECRET")
+	if jwtSecret == "" {
+		return nil, errors.New("AUTH_JWT_SECRET environment variable requires a value")
+	}
+
+	userTokenSecret := EnvReader.GetString("AUTH_USER_TOKEN_SECRET")
+	if userTokenSecret == "" {
+		return nil, errors.New("AUTH_USER_TOKEN_SECRET environment variable requires a value")
+	}
+
+	adminTokenSecret := EnvReader.GetString("AUTH_ADMIN_TOKEN_SECRET")
+	if userTokenSecret == "" {
+		return nil, errors.New("AUTH_ADMIN_TOKEN_SECRET environment variable requires a value")
+	}
 
 	verificationCodeLength := EnvReader.GetInt("AUTH_VERIFICATION_CODE_LENGTH", 6)
 	verificationMaxRetries := EnvReader.GetInt("AUTH_VERIFICATION_MAX_RETRIES", 6)
@@ -59,10 +70,11 @@ func NewServer(w io.Writer, getenv func(string) string, dbConnStr string, verifi
 	if err != nil {
 		return nil, err
 	}
+	// Don't close the connect here. It will be done later
 	// defer db.Close()
 
 	verifier.Setup(verificationCodeLength, verificationMaxRetries)
-	tokenGenerator.Setup(jwtSecret)
+	TokenUtils.Setup(jwtSecret)
 
 	var dbrepo storage.DBRepo = database.NewPostgresDBRepo(db)
 	configs := Configs{
@@ -70,7 +82,9 @@ func NewServer(w io.Writer, getenv func(string) string, dbConnStr string, verifi
 		Logger:            logger,
 		Verifier:          verifier,
 		PasswordEncryptor: passwordEncryptor,
-		TokenGenerator:    tokenGenerator,
+		TokenUtils:        TokenUtils,
+		UserTokenSecret:   userTokenSecret,
+		AdminTokenSecret:  adminTokenSecret,
 	}
 
 	srv := http.Server{

@@ -1,0 +1,21 @@
+meta {
+  name: Health
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseURL}}/api/auth/healthz
+  body: none
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "test@gmail.com"
+  }
+}

@@ -17,7 +17,7 @@ func main() {
 	}
 
 	ctx := context.Background()
-	app, err := NewServer(os.Stdout, os.Getenv, "", &verify.UserVerification{}, &verify.PasswordEncryptorBcrypt{}, &verify.TokenGeneratorJWT{})
+	app, err := NewServer(os.Stdout, os.Getenv, "", &verify.UserVerification{}, &verify.PasswordEncryptorBcrypt{}, &verify.JWTTokenUtils{})
 	if err != nil {
 		fmt.Fprintf(os.Stdout, "%s\n", err)
 		os.Exit(1)

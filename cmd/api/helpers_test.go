@@ -1,6 +1,7 @@
 package main
 
 import (
+	"auth_api/internal/helpers"
 	"encoding/json"
 	"testing"
 
@@ -20,7 +21,7 @@ func TestSuccessResponse(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			response := SuccessResponse(test.data)
+			response := helpers.SuccessResponse(test.data)
 			b, err := json.Marshal(response)
 			if err != nil {
 				t.Errorf("unexpected error while marshalling struct to json: %s", err.Error())
@@ -44,7 +45,7 @@ func TestFailResponse(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			response := FailResponse(test.data)
+			response := helpers.FailResponse(test.data)
 			b, err := json.Marshal(response)
 			if err != nil {
 				t.Errorf("unexpected error while marshalling struct to json: %s", err.Error())
@@ -66,7 +67,7 @@ func TestErrorResponse(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			response := ErrorResponse(test.message)
+			response := helpers.ErrorResponse(test.message)
 			b, err := json.Marshal(response)
 			if err != nil {
 				t.Errorf("unexpected error while marshalling struct to json: %s", err.Error())

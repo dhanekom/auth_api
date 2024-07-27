@@ -21,6 +21,16 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+const (
+	apiVersion     = "v1"
+	userAuthToken  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkRpZmYiLCJpYXQiOjE1MTYyMzkwMjJ9.6Xq-5W9lU5IVp0iCnSiBIuvoBaxfi7V4vbxRzK-H0YM"
+	adminAuthToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkRpZmYiLCJpYXQiOjE1MTYyMzkwMjJ9.8SgpGNj3y4HI8884-yuMszgRghYS0j6i7KP1OOLpuMg"
+)
+
+func versionUrl(aURL string) string {
+	return fmt.Sprintf("/%s%s", apiVersion, aURL)
+}
+
 func TestRegisterHandler(t *testing.T) {
 	tests := []struct {
 		desc    string
@@ -39,8 +49,8 @@ func TestRegisterHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-
-			req, _ := http.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(test.reqBody))
+			req, _ := http.NewRequest(http.MethodPost, versionUrl("/api/auth/register"), strings.NewReader(test.reqBody))
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", userAuthToken))
 			w := httptest.NewRecorder()
 			app.server.Handler.ServeHTTP(w, req)
 
@@ -76,8 +86,8 @@ func TestGenerateVerificationCodeHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-
-			req, _ := http.NewRequest(http.MethodGet, "/api/auth/verify", strings.NewReader(test.reqBody))
+			req, _ := http.NewRequest(http.MethodGet, versionUrl("/api/auth/verify"), strings.NewReader(test.reqBody))
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", userAuthToken))
 			w := httptest.NewRecorder()
 			app.server.Handler.ServeHTTP(w, req)
 
@@ -116,8 +126,8 @@ func TestVerifyUserHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-
-			req, _ := http.NewRequest(http.MethodPost, "/api/auth/verify", strings.NewReader(test.reqBody))
+			req, _ := http.NewRequest(http.MethodPost, versionUrl("/api/auth/verify"), strings.NewReader(test.reqBody))
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", userAuthToken))
 			w := httptest.NewRecorder()
 			app.server.Handler.ServeHTTP(w, req)
 
@@ -155,8 +165,8 @@ func TestTokenHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-
-			req, _ := http.NewRequest(http.MethodPost, "/api/auth/token", strings.NewReader(test.reqBody))
+			req, _ := http.NewRequest(http.MethodPost, versionUrl("/api/auth/token"), strings.NewReader(test.reqBody))
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", userAuthToken))
 			w := httptest.NewRecorder()
 			app.server.Handler.ServeHTTP(w, req)
 
@@ -191,8 +201,8 @@ func TestDeleteUserHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-
-			req, _ := http.NewRequest(http.MethodDelete, "/api/auth/user", strings.NewReader(test.reqBody))
+			req, _ := http.NewRequest(http.MethodDelete, versionUrl("/api/auth/user"), strings.NewReader(test.reqBody))
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", adminAuthToken))
 			w := httptest.NewRecorder()
 			app.server.Handler.ServeHTTP(w, req)
 
@@ -218,6 +228,10 @@ func GetTestEnv(key string) string {
 		return ""
 	case "AUTH_JWT_SECRET":
 		return "e63be6cb5ff205cc08b5fb1f8d2d67e2a6b4e8a21432b6236260c586526271657c1cca677f95e51dfd64f8c4c62383d45abc7af77025eb55dab03abc4eec04b27732fb0a7eeeb4db8b05bf0278d6305eb5a247957071850da50235d09af9fab3e2e32bdd5e67a67bb461fa11bd3ed081fd34d038841547bbfa079631fbda92aa73b569b3cb1417ec5fbdc01b82abb46ffa73cee613abcb5a1c8b4e441fe01ca46007d1b5ecc2d48ed573049db76998b51d27b23512b2f3199da039b7859395120bef26d9f56f6cfb6bd93fbbcfa732ab2651c76e22d3e7987ed31a5f754e3e6f2068107c61b707f557d00bc5431abaa4f19ed276e0a58b1821b164cffe267d4f"
+	case "AUTH_USER_TOKEN_SECRET":
+		return "usertokensecret"
+	case "AUTH_ADMIN_TOKEN_SECRET":
+		return "admintokensecret"
 	default:
 		return ""
 	}
@@ -257,7 +271,7 @@ func setupApp(t *testing.T, ctx context.Context) *App {
 	writer := bufio.NewWriter(&b)
 	app, err := NewServer(writer, GetTestEnv, dbConnStr, &MockUserVerifier{maxRetries: 3, verificationCode: "ABCDEF"}, &MockPasswordEncryptor{}, &MockTokenGenerator{})
 	if err != nil {
-		t.Errorf("unexpected error: %s", err)
+		t.Fatalf("unexpected error: %s", err)
 	}
 
 	return app
@@ -308,7 +322,7 @@ func (t *MockTokenGenerator) Setup(secret string) {
 	//
 }
 
-func (t *MockTokenGenerator) GenerateToken(userID int, expiresAtUnixTime int64) (string, error) {
+func (t *MockTokenGenerator) GenerateToken(userID int, hours int) (string, error) {
 	if userID == 7 {
 		return "", errors.New("GenerateToken - unable to generate token")
 	}

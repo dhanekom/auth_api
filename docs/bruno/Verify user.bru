@@ -7,16 +7,12 @@ meta {
 post {
   url: {{baseURL}}/api/auth/verify
   body: json
-  auth: none
-}
-
-headers {
-  Content-Type: application/json
+  auth: inherit
 }
 
 body:json {
   {
     "email": "test@gmail.com",
-    "verification_code": "DDWGOZ"
+    "verification_code": "ESIGGO"
   }
 }

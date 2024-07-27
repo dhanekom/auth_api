@@ -1,6 +1,7 @@
 package main
 
 import (
+	"auth_api/internal/helpers"
 	"auth_api/internal/models"
 	"auth_api/internal/validator"
 	"database/sql"
@@ -8,8 +9,6 @@ import (
 	"fmt"
 	"net/http"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 // RegisterHandler create a user account with a hashed password
@@ -25,8 +24,8 @@ func (app *Configs) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		validator.Validator
 	}
 
-	if err := app.readJSON(w, r, &body); err != nil {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse("unable to parse json body"))
+	if err := helpers.ReadJSON(w, r, &body); err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("unable to parse json body"))
 		return
 	}
 
@@ -41,26 +40,26 @@ func (app *Configs) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	sv.CheckValue(validator.IsEmail(sv.Email), "email", "valid email required")
 
 	if !sv.Valid() {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse(sv.Error()))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(sv.Error()))
 		return
 	}
 
 	// check if account already exists in DB
 	users, err := app.DB.GetUsers(r.Context(), sv.Email)
 	if err != nil {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse(err.Error()))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(err.Error()))
 		return
 	}
 
 	if len(users) > 0 {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse("user already exists"))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("user already exists"))
 		return
 	}
 
 	// Hash and salt password
 	hashedPasswordBytes, err := app.PasswordEncryptor.GenerateHashedPassword(sv.Password)
 	if err != nil {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse(err.Error()))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(err.Error()))
 		return
 	}
 
@@ -73,11 +72,11 @@ func (app *Configs) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = app.DB.CreateUser(r.Context(), user)
 	if err != nil {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse(err.Error()))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(err.Error()))
 		return
 	}
 
-	app.writeJSON(w, http.StatusOK, SuccessResponse(gin.H{"message": "successfully created user"}))
+	helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse(map[string]any{"message": "successfully created user"}))
 }
 
 // GenerateVerificationCodeHandler generates an verification code for an unverified user
@@ -87,37 +86,37 @@ func (app *Configs) GenerateVerificationCodeHandler(w http.ResponseWriter, r *ht
 		validator.Validator
 	}
 
-	if err := app.readJSON(w, r, &requestBody); err != nil {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse("unable to parse json body"))
+	if err := helpers.ReadJSON(w, r, &requestBody); err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("unable to parse json body"))
 		return
 	}
 
 	requestBody.CheckRequired(requestBody.Email, "email")
 	requestBody.CheckValue(validator.IsEmail(requestBody.Email), "email", "valid email required")
 	if !requestBody.Valid() {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse(requestBody.Error()))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(requestBody.Error()))
 		return
 	}
 
 	user, err := app.DB.GetUser(r.Context(), requestBody.Email)
 	if errors.Is(err, sql.ErrNoRows) {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse("user does not exist"))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("user does not exist"))
 		return
 	}
 
 	if user.IsVerified {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse("user already verified"))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("user already verified"))
 		return
 	}
 
 	if err != nil {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse(err.Error()))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(err.Error()))
 		return
 	}
 
 	code, err := app.Verifier.GenerateVerificationCode()
 	if err != nil {
-		app.writeJSON(w, http.StatusInternalServerError, ErrorResponse(err.Error()))
+		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
 		return
 	}
 
@@ -129,7 +128,7 @@ func (app *Configs) GenerateVerificationCodeHandler(w http.ResponseWriter, r *ht
 	}
 
 	if err := app.DB.InsertOrUpdateVerification(r.Context(), verification); err != nil {
-		app.writeJSON(w, http.StatusInternalServerError, ErrorResponse(err.Error()))
+		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
 		return
 	}
 
@@ -139,7 +138,7 @@ func (app *Configs) GenerateVerificationCodeHandler(w http.ResponseWriter, r *ht
 
 	responseBody.VerificationCode = code
 
-	app.writeJSON(w, http.StatusOK, SuccessResponse(responseBody))
+	helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse(responseBody))
 }
 
 // VerifyUserHandler is used to verify a user account given a valid verification code (provided by GenerateVerificationCodeHandler)
@@ -150,8 +149,8 @@ func (app *Configs) VerifyUserHandler(w http.ResponseWriter, r *http.Request) {
 		validator.Validator
 	}
 
-	if err := app.readJSON(w, r, &requestBody); err != nil {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse("unable to parse json body"))
+	if err := helpers.ReadJSON(w, r, &requestBody); err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("unable to parse json body"))
 		return
 	}
 
@@ -160,29 +159,29 @@ func (app *Configs) VerifyUserHandler(w http.ResponseWriter, r *http.Request) {
 	requestBody.CheckRequired(requestBody.VerificationCode, "verification_code")
 
 	if !requestBody.Valid() {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse(requestBody.Error()))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(requestBody.Error()))
 		return
 	}
 
 	user, err := app.DB.GetUser(r.Context(), requestBody.Email)
 	if errors.Is(err, sql.ErrNoRows) {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse("user does not exist"))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("user does not exist"))
 		return
 	}
 
 	if err != nil {
-		app.writeJSON(w, http.StatusInternalServerError, ErrorResponse(err.Error()))
+		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
 		return
 	}
 
 	verification, err := app.DB.GetVerification(r.Context(), requestBody.Email)
 	if errors.Is(err, sql.ErrNoRows) {
-		app.writeJSON(w, http.StatusInternalServerError, ErrorResponse(fmt.Sprintf("no verification data found for user %s", requestBody.Email)))
+		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(fmt.Sprintf("no verification data found for user %s", requestBody.Email)))
 		return
 	}
 
 	if err != nil {
-		app.writeJSON(w, http.StatusInternalServerError, ErrorResponse(err.Error()))
+		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
 		return
 	}
 
@@ -192,25 +191,25 @@ func (app *Configs) VerifyUserHandler(w http.ResponseWriter, r *http.Request) {
 			app.Logger.Error(err.Error())
 		}
 
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse("verification code has expired"))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("verification code has expired"))
 		return
 	}
 
 	if requestBody.VerificationCode != verification.VerificationCode {
 		if verification.AttemptsRemaining >= 0 {
 			if err := app.DB.InsertOrUpdateVerification(r.Context(), *verification); err != nil {
-				app.writeJSON(w, http.StatusInternalServerError, ErrorResponse(err.Error()))
+				helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
 				return
 			}
 		}
 
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse("invalid verification code"))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("invalid verification code"))
 		return
 	}
 
 	user.IsVerified = true
 	if err := app.DB.UpdateUser(r.Context(), *user); err != nil {
-		app.writeJSON(w, http.StatusInternalServerError, ErrorResponse(err.Error()))
+		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
 		return
 	}
 
@@ -218,7 +217,7 @@ func (app *Configs) VerifyUserHandler(w http.ResponseWriter, r *http.Request) {
 		app.Logger.Error(err.Error())
 	}
 
-	app.writeJSON(w, http.StatusOK, SuccessResponse(nil))
+	helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse(nil))
 }
 
 // TokenHandler verifies a user's email and password and returns a JWT (JSON Web Token) if valid credentials were provided
@@ -229,8 +228,8 @@ func (app *Configs) TokenHandler(w http.ResponseWriter, r *http.Request) {
 		validator.Validator
 	}
 
-	if err := app.readJSON(w, r, &body); err != nil {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse("unable to parse json body"))
+	if err := helpers.ReadJSON(w, r, &body); err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("unable to parse json body"))
 		return
 	}
 
@@ -238,39 +237,39 @@ func (app *Configs) TokenHandler(w http.ResponseWriter, r *http.Request) {
 	body.CheckRequired(body.Password, "password")
 	body.CheckValue(validator.IsEmail(body.Email), "email", "valid email required")
 	if !body.Valid() {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse(body.Error()))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(body.Error()))
 		return
 	}
 
 	user, err := app.DB.GetUser(r.Context(), body.Email)
 	if errors.Is(err, sql.ErrNoRows) {
-		app.writeJSON(w, http.StatusUnauthorized, ErrorResponse("invalid email or password"))
+		helpers.WriteJSON(w, http.StatusUnauthorized, helpers.ErrorResponse("invalid email or password"))
 		return
 	}
 
 	if err != nil {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse(err.Error()))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(err.Error()))
 		return
 	}
 
 	if !user.IsVerified {
-		app.writeJSON(w, http.StatusUnauthorized, ErrorResponse("user not verified"))
+		helpers.WriteJSON(w, http.StatusUnauthorized, helpers.ErrorResponse("user not verified"))
 		return
 	}
 
 	err = app.PasswordEncryptor.CompareHashAndPassword([]byte(user.Password), []byte(body.Password))
 	if err != nil {
-		app.writeJSON(w, http.StatusUnauthorized, ErrorResponse("invalid email or password"))
+		helpers.WriteJSON(w, http.StatusUnauthorized, helpers.ErrorResponse("invalid email or password"))
 		return
 	}
 
-	tokenString, err := app.TokenGenerator.GenerateToken(user.UserID, time.Now().Add(time.Hour*24).Unix())
+	tokenString, err := app.TokenUtils.GenerateToken(user.UserID, 24)
 	if err != nil {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse("auth token generation failed"))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("auth token generation failed"))
 		return
 	}
 
-	app.writeJSON(w, http.StatusOK, SuccessResponse(gin.H{"token": tokenString}))
+	helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse(map[string]any{"token": tokenString}))
 }
 
 // DeleteUserHandler takes an email address and deletes the related user and verification data
@@ -280,28 +279,28 @@ func (app *Configs) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 		validator.Validator
 	}
 
-	if err := app.readJSON(w, r, &body); err != nil {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse("unable to parse json body"))
+	if err := helpers.ReadJSON(w, r, &body); err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("unable to parse json body"))
 		return
 	}
 
 	body.CheckRequired(body.Email, "email")
 	body.CheckValue(validator.IsEmail(body.Email), "email", "valid email required")
 	if !body.Valid() {
-		app.writeJSON(w, http.StatusBadRequest, ErrorResponse(body.Error()))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(body.Error()))
 		return
 	}
 
 	recordsDeleted, err := app.DB.DeleteUser(r.Context(), body.Email)
 	if err != nil {
-		app.writeJSON(w, http.StatusInternalServerError, ErrorResponse(err.Error()))
+		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
 		return
 	}
 
 	if !recordsDeleted {
-		app.writeJSON(w, http.StatusOK, SuccessResponse(gin.H{"message": "user not found"}))
+		helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse(map[string]any{"message": "user not found"}))
 		return
 	}
 
-	app.writeJSON(w, http.StatusOK, SuccessResponse(nil))
+	helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse(nil))
 }
