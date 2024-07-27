@@ -2,7 +2,7 @@
 Authentication api written in Go
 
 # Description
-This api provides you with all the basic features required to manage user registration, authorization (using JSON Web Tokens), password reset and more.
+This api provides you with all the basic features required to manage user registration, authorization (using JSON Web Tokens) and more.
 
 ## Features
 
