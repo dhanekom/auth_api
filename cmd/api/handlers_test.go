@@ -313,7 +313,7 @@ func setupApp(t *testing.T, ctx context.Context) *App {
 		ctx,
 		"postgres:15.3-alpine",
 		postgres.WithInitScripts(filepath.Join("..", "..", "migrations", "00000000_000000_init.up.sql")),
-		postgres.WithInitScripts(filepath.Join("..", "..", "testdata", "init-db.sql")),
+		postgres.WithInitScripts(filepath.Join("..", "..", "testing", "testdata", "init-db.sql")),
 		postgres.WithDatabase("auth_db"),
 		postgres.WithUsername("test"),
 		postgres.WithPassword("test"),
