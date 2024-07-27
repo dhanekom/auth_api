@@ -31,6 +31,75 @@ func versionUrl(aURL string) string {
 	return fmt.Sprintf("/%s%s", apiVersion, aURL)
 }
 
+func TestAuthMiddelwareBlockAccess(t *testing.T) {
+	tests := []struct {
+		desc       string
+		authHeader string
+		statusCode int
+		want       string
+	}{
+		{desc: "no authorization header", authHeader: "", statusCode: http.StatusUnauthorized, want: `{"status":"error","message":"authorization failed"}`},
+		{desc: "invalid authorization header", authHeader: "bearer asdf aa", statusCode: http.StatusUnauthorized, want: `{"status":"error","message":"authorization failed"}`},
+		{desc: "invalid bearer token", authHeader: "Bearer invalidtoken", statusCode: http.StatusUnauthorized, want: `{"status":"error","message":"token verification failed"}`},
+	}
+
+	ctx := context.Background()
+	app := setupApp(t, ctx)
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			req, _ := http.NewRequest(http.MethodPost, versionUrl("/api/auth/register"), nil)
+			if test.authHeader != "" {
+				req.Header.Set("Authorization", test.authHeader)
+			}
+			w := httptest.NewRecorder()
+			app.server.Handler.ServeHTTP(w, req)
+
+			resp := w.Result()
+			json, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Errorf("didn't expect error but got %s", err)
+			}
+
+			assert.Equal(t, test.statusCode, resp.StatusCode)
+			assert.Equal(t, test.want, string(json))
+		})
+	}
+}
+
+func TestAdminMiddelwareBlockAccess(t *testing.T) {
+	tests := []struct {
+		desc       string
+		authHeader string
+		statusCode int
+		want       string
+	}{
+		{desc: "no authorization header", authHeader: "", statusCode: http.StatusUnauthorized, want: `{"status":"error","message":"authorization failed"}`},
+		{desc: "invalid bearer token", authHeader: fmt.Sprintf("Bearer %s", userAuthToken), statusCode: http.StatusForbidden, want: `{"status":"error","message":"admin access rights required"}`},
+	}
+
+	ctx := context.Background()
+	app := setupApp(t, ctx)
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			req, _ := http.NewRequest(http.MethodDelete, versionUrl("/api/auth/user"), nil)
+			if test.authHeader != "" {
+				req.Header.Set("Authorization", test.authHeader)
+			}
+			w := httptest.NewRecorder()
+			app.server.Handler.ServeHTTP(w, req)
+
+			resp := w.Result()
+			json, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Errorf("didn't expect error but got %s", err)
+			}
+
+			assert.Equal(t, test.statusCode, resp.StatusCode)
+			assert.Equal(t, test.want, string(json))
+		})
+	}
+}
+
 func TestRegisterHandler(t *testing.T) {
 	tests := []struct {
 		desc    string

@@ -39,7 +39,7 @@ func Auth(secrets []string) func(next http.Handler) http.Handler {
 			}
 
 			if !authorized {
-				helpers.WriteJSON(w, http.StatusUnauthorized, helpers.ErrorResponse("failed JWT verification"))
+				helpers.WriteJSON(w, http.StatusUnauthorized, helpers.ErrorResponse("token verification failed"))
 				return
 			}
 
