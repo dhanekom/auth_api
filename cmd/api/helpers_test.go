@@ -16,7 +16,7 @@ func TestSuccessResponse(t *testing.T) {
 	}{
 		{desc: "nil", data: nil, want: `{"status":"success"}`},
 		{desc: "string", data: "some string", want: `{"status":"success","data":"some string"}`},
-		{desc: "string", data: map[string]any{"message": "some string"}, want: `{"status":"success","data":{"message":"some string"}}`},
+		{desc: "map", data: map[string]any{"message": "some string"}, want: `{"status":"success","data":{"message":"some string"}}`},
 	}
 
 	for _, test := range tests {
@@ -40,7 +40,7 @@ func TestFailResponse(t *testing.T) {
 	}{
 		{desc: "nil", data: nil, want: `{"status":"fail"}`},
 		{desc: "string", data: "some string", want: `{"status":"fail","data":"some string"}`},
-		{desc: "string", data: map[string]any{"message": "some string"}, want: `{"status":"fail","data":{"message":"some string"}}`},
+		{desc: "map", data: map[string]any{"message": "some string"}, want: `{"status":"fail","data":{"message":"some string"}}`},
 	}
 
 	for _, test := range tests {

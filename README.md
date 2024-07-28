@@ -1,46 +1,29 @@
 
 # :warning: Warning - this api is not yet production ready
 
-  
-
 # auth_api
-
 Authentication api written in Go
 
   
 
 # Description
-
 This api provides you with all the basic features required to manage user registration, authorization (using JSON Web Tokens) and more.
 
   
 
 ## Features
-
-  
-
 - Register users
-
 - Generate verification codes
-
 - Verify users
-
 - Get JWT auth tokens (use in frontend Authorization headers)
-
 - Delete users (admin users only)
 
-  
-  
-
 ## Setup
-
 - Step 1: Download and install [Go](https://go.dev/doc/install) (requires Go 1.22 or higher)
-
 - Step 2: Clone this git repo
-
 - Step 3: Setup a Postgres DB (e.g using Docker)
-
-- Step 4: Configure environment variables - All configuration is done using environment variables.
+- Step 4: Run all the *.up.sql script in sequence on the Postgres DB
+- Step 5: Configure environment variables - All configuration is done using environment variables.
 
 The application supports .env files(see a sample .env file below)
 
@@ -64,9 +47,9 @@ AUTH_ADMIN_TOKEN_SECRET=supersecretkey
 
 ```
 
-- Step 5: Install and start docker - this application uses a [Postgres testcontainer](https://golang.testcontainers.org/modules/postgres/). The docker image will automatically be pulled when you run tests
+- Step 6: Install and start docker - this application uses a [Postgres testcontainer](https://golang.testcontainers.org/modules/postgres/). The docker image will automatically be pulled when you run tests
 
-- Step 6: Build the application
+- Step 7: Build the application
 
 ```console
 
@@ -79,8 +62,19 @@ go build -o <output path> ./...
   
 
 ## Testing
+You can run automated tests by executing the command below in a terminal.
 
-[Bruno](https://www.usebruno.com/downloads) is an open source api client for testing APIs. You can install Bruno and open the <code>./testing/bruno/auth_api</code> collection for testing.
+```console
+
+# navigate to the cloned project root directory
+
+go test ./...
+
+```
+
+<br/>
+
+[Bruno](https://www.usebruno.com/downloads) is an open source api client for testing APIs. You can install Bruno and open the <code>./testing/bruno/auth_api</code> collection for testing. Make sure to run the api executable first so that you can test it with an api client like curl or Bruno.
 
   
 
