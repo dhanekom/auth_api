@@ -346,7 +346,7 @@ func (app *Configs) ResetPasswordHandler(w http.ResponseWriter, r *http.Request)
 
 	verification := models.Verification{
 		Email:             requestBody.Email,
-		VerificationType:  models.VerificationTypeAccount,
+		VerificationType:  models.VerificationTypePasswordReset,
 		VerificationCode:  verificationCode,
 		ExpiresAt:         time.Now().Add(time.Hour * 24),
 		AttemptsRemaining: app.Verifier.MaxRetries(),
