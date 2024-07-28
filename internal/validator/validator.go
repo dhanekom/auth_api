@@ -3,9 +3,7 @@ package validator
 import (
 	"fmt"
 	"regexp"
-	"slices"
 	"strings"
-	"unicode/utf8"
 )
 
 const (
@@ -72,24 +70,24 @@ func NotBlank(value string) bool {
 	return strings.TrimSpace(value) != ""
 }
 
-// MaxLength checks that the number of runes (characters) in value is less or equal to n
-func MaxLength(value string, n int) bool {
-	return utf8.RuneCountInString(value) <= n
-}
+// // MaxLength checks that the number of runes (characters) in value is less or equal to n
+// func MaxLength(value string, n int) bool {
+// 	return utf8.RuneCountInString(value) <= n
+// }
 
-// MaxLength checks that the number of runes (characters) in value is more or equal to n
-func MinLength(value string, n int) bool {
-	return utf8.RuneCountInString(value) <= n
-}
+// // MinLength checks that the number of runes (characters) in value is more or equal to n
+// func MinLength(value string, n int) bool {
+// 	return utf8.RuneCountInString(value) <= n
+// }
 
-// BetweenLength checks that the length of value is between min and mx
-func BetweenLength(value string, min, max int) bool {
-	return utf8.RuneCountInString(value) >= min && utf8.RuneCountInString(value) <= max
-}
+// // BetweenLength checks that the length of value is between min and mx
+// func BetweenLength(value string, min, max int) bool {
+// 	return utf8.RuneCountInString(value) >= min && utf8.RuneCountInString(value) <= max
+// }
 
-func PermittedValue[T comparable](value T, permittedValues ...T) bool {
-	return slices.Contains(permittedValues, value)
-}
+// func PermittedValue[T comparable](value T, permittedValues ...T) bool {
+// 	return slices.Contains(permittedValues, value)
+// }
 
 func IsEmail(value string) bool {
 	return EmailRegex.MatchString(value)

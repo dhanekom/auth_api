@@ -1,5 +1,5 @@
 CREATE TABLE if not exists public.users (
-  user_id SERIAL PRIMARY KEY,
+  user_id uuid PRIMARY KEY,
   email varchar(255) not null,
   password text not null,
   is_verified bool not null DEFAULT false,

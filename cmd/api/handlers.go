@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // RegisterHandler create a user account with a hashed password
@@ -65,6 +67,7 @@ func (app *Configs) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Create user
 	user := &models.User{
+		UserID:     uuid.New().String(),
 		Email:      sv.Email,
 		Password:   string(hashedPasswordBytes),
 		IsVerified: false,

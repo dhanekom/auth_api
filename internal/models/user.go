@@ -3,7 +3,7 @@ package models
 import "time"
 
 type User struct {
-	UserID     int       `db:"user_id"`
+	UserID     string    `db:"user_id"`
 	Email      string    `db:"email"`
 	Password   string    `db:"password"`
 	IsVerified bool      `db:"is_verified"`

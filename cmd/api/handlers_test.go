@@ -287,6 +287,18 @@ func TestDeleteUserHandler(t *testing.T) {
 	}
 }
 
+func TestHealthzHandler(t *testing.T) {
+	ctx := context.Background()
+	app := setupApp(t, ctx)
+	req, _ := http.NewRequest(http.MethodGet, versionUrl("/api/auth/healthz"), nil)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", userAuthToken))
+	w := httptest.NewRecorder()
+	app.server.Handler.ServeHTTP(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
 func GetTestEnv(key string) string {
 	switch key {
 	case "AUTH_HOST_ADDR":
@@ -391,8 +403,8 @@ func (t *MockTokenGenerator) Setup(secret string) {
 	//
 }
 
-func (t *MockTokenGenerator) GenerateToken(userID int, hours int) (string, error) {
-	if userID == 7 {
+func (t *MockTokenGenerator) GenerateToken(userID string, hours int) (string, error) {
+	if userID == "0460d39a-9c81-48bd-86ed-7154f44ac617" {
 		return "", errors.New("GenerateToken - unable to generate token")
 	}
 	return TestToken, nil

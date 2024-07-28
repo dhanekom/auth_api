@@ -13,7 +13,7 @@ const (
 	UserGetSQL = `SELECT user_id, email, password, is_verified, created_at, updated_at
 	FROM users
 	WHERE email = $1`
-	UserCreateSQL = `INSERT INTO users (email, password, is_verified) values ($1, $2, $3) returning user_id`
+	UserCreateSQL = `INSERT INTO users (user_id, email, password, is_verified) values ($1::uuid, $2, $3, $4)`
 	UserUpdateSQL = `UPDATE users set email = $1, password = $2, is_verified = $3, updated_at = now() WHERE user_id = $4`
 	UserDeleteSQL = `DELETE FROM users where email = $1`
 
@@ -65,12 +65,10 @@ func (r *PostgresDBRepo) CreateUser(ctx context.Context, user *models.User) erro
 	ctxInner, cancel := context.WithTimeout(ctx, time.Second*queryTimeout)
 	defer cancel()
 
-	var userID int
-	err := r.db.QueryRowContext(ctxInner, UserCreateSQL, user.Email, user.Password, user.IsVerified).Scan(&userID)
+	_, err := r.db.ExecContext(ctxInner, UserCreateSQL, user.UserID, user.Email, user.Password, user.IsVerified)
 	if err != nil {
 		return fmt.Errorf("unable to insert user data: %w", err)
 	}
-	user.UserID = userID
 
 	return nil
 }

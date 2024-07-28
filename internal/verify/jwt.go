@@ -10,7 +10,7 @@ import (
 
 type TokenUtils interface {
 	Setup(secret string)
-	GenerateToken(userID int, hours int) (string, error)
+	GenerateToken(userID string, hours int) (string, error)
 }
 
 type JWTTokenUtils struct {
@@ -21,7 +21,7 @@ func (t *JWTTokenUtils) Setup(secret string) {
 	t.secret = secret
 }
 
-func (t *JWTTokenUtils) GenerateToken(userID int, hours int) (string, error) {
+func (t *JWTTokenUtils) GenerateToken(userID string, hours int) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub": userID,
 		"exp": time.Now().Add(time.Hour * time.Duration(hours)).Unix(),
