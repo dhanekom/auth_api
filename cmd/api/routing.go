@@ -8,18 +8,20 @@ import (
 func (app *Configs) routes() http.Handler {
 	router := http.NewServeMux()
 
-	router.HandleFunc("POST /api/auth/register", app.RegisterHandler)
-	router.HandleFunc("GET /api/auth/verify", app.GenerateVerificationCodeHandler)
-	router.HandleFunc("POST /api/auth/verify", app.VerifyUserHandler)
-	router.HandleFunc("POST /api/auth/token", app.TokenHandler)
-	router.HandleFunc("GET /api/auth/healthz", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("POST /auth/register", app.RegisterHandler)
+	router.HandleFunc("GET /auth/verify", app.GenerateVerificationCodeHandler)
+	router.HandleFunc("POST /auth/verify", app.VerifyUserHandler)
+	router.HandleFunc("POST /auth/token", app.TokenHandler)
+	router.HandleFunc("POST /auth/resetpassword", app.ResetPasswordHandler)
+	router.HandleFunc("POST /auth/verifypassword", app.VerifyPasswordResetHandler)
+	router.HandleFunc("GET /auth/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
 	adminRouter := http.NewServeMux()
-	adminRouter.HandleFunc("DELETE /api/auth/user", app.DeleteUserHandler)
+	adminRouter.HandleFunc("DELETE /admin/auth/user", app.DeleteUserHandler)
 
-	router.Handle("/", middleware.Admin(app.AdminTokenSecret, adminRouter))
+	router.Handle("/admin/", middleware.Admin(app.AdminTokenSecret, adminRouter))
 
 	v1 := http.NewServeMux()
 	v1.Handle("/v1/", http.StripPrefix("/v1", router))

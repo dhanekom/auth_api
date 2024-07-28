@@ -12,6 +12,6 @@ type DBRepo interface {
 	UpdateUser(ctx context.Context, user models.User) error
 	DeleteUser(ctx context.Context, email string) (bool, error)
 	InsertOrUpdateVerification(ctx context.Context, verification models.Verification) error
-	GetVerification(ctx context.Context, email string) (*models.Verification, error)
+	GetVerification(ctx context.Context, verificationType string, email string) (*models.Verification, error)
 	DeleteVerification(ctx context.Context, email string) error
 }

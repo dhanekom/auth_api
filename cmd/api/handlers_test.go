@@ -47,7 +47,7 @@ func TestAuthMiddelwareBlockAccess(t *testing.T) {
 	app := setupApp(t, ctx)
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			req, _ := http.NewRequest(http.MethodPost, versionUrl("/api/auth/register"), nil)
+			req, _ := http.NewRequest(http.MethodPost, versionUrl("/auth/register"), nil)
 			if test.authHeader != "" {
 				req.Header.Set("Authorization", test.authHeader)
 			}
@@ -81,7 +81,7 @@ func TestAdminMiddelwareBlockAccess(t *testing.T) {
 	app := setupApp(t, ctx)
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			req, _ := http.NewRequest(http.MethodDelete, versionUrl("/api/auth/user"), nil)
+			req, _ := http.NewRequest(http.MethodDelete, versionUrl("/admin/auth/user"), nil)
 			if test.authHeader != "" {
 				req.Header.Set("Authorization", test.authHeader)
 			}
@@ -118,7 +118,7 @@ func TestRegisterHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			req, _ := http.NewRequest(http.MethodPost, versionUrl("/api/auth/register"), strings.NewReader(test.reqBody))
+			req, _ := http.NewRequest(http.MethodPost, versionUrl("/auth/register"), strings.NewReader(test.reqBody))
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", userAuthToken))
 			w := httptest.NewRecorder()
 			app.server.Handler.ServeHTTP(w, req)
@@ -155,7 +155,7 @@ func TestGenerateVerificationCodeHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			req, _ := http.NewRequest(http.MethodGet, versionUrl("/api/auth/verify"), strings.NewReader(test.reqBody))
+			req, _ := http.NewRequest(http.MethodGet, versionUrl("/auth/verify"), strings.NewReader(test.reqBody))
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", userAuthToken))
 			w := httptest.NewRecorder()
 			app.server.Handler.ServeHTTP(w, req)
@@ -183,10 +183,10 @@ func TestVerifyUserHandler(t *testing.T) {
 		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required, verification_code: required"}`},
 		{desc: "invalid email", reqBody: `{"email": "invalidemail", "verification_code": "ABCDEF"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`},
 		{desc: "user does not exist", reqBody: `{"email": "notexist@gmail.com", "verification_code": "ABCDEF"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user does not exist"}`},
-		{desc: "no verification data", reqBody: `{"email": "noverification@gmail.com", "verification_code": "ABCDEF"}`, status: http.StatusInternalServerError, want: `{"status":"error","message":"no verification data found for user noverification@gmail.com"}`},
-		{desc: "verification code has expired", reqBody: `{"email": "expiredverification@gmail.com", "verification_code": "ABCDEF"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"verification code has expired"}`},
-		{desc: "too many attempts", reqBody: `{"email": "toomanyattempts@gmail.com", "verification_code": "ABCDEF"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"verification code has expired"}`},
-		{desc: "invalid verification code", reqBody: `{"email": "unverified@gmail.com", "verification_code": "INVALID"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"invalid verification code"}`},
+		{desc: "no account verification data", reqBody: `{"email": "noverification@gmail.com", "verification_code": "ABCDEF"}`, status: http.StatusInternalServerError, want: `{"status":"error","message":"no account verification data found for user noverification@gmail.com"}`},
+		{desc: "user verification code has expired", reqBody: `{"email": "expiredverification@gmail.com", "verification_code": "ABCDEF"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user verification code has expired"}`},
+		{desc: "too many attempts", reqBody: `{"email": "toomanyattempts@gmail.com", "verification_code": "ABCDEF"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user verification code has expired"}`},
+		{desc: "invalid user verification code", reqBody: `{"email": "unverified@gmail.com", "verification_code": "INVALID"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"invalid user verification code"}`},
 		{desc: "success", reqBody: `{"email": "unverified@gmail.com", "verification_code": "ABCDEF"}`, status: http.StatusOK, want: `{"status":"success"}`},
 	}
 
@@ -195,7 +195,7 @@ func TestVerifyUserHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			req, _ := http.NewRequest(http.MethodPost, versionUrl("/api/auth/verify"), strings.NewReader(test.reqBody))
+			req, _ := http.NewRequest(http.MethodPost, versionUrl("/auth/verify"), strings.NewReader(test.reqBody))
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", userAuthToken))
 			w := httptest.NewRecorder()
 			app.server.Handler.ServeHTTP(w, req)
@@ -223,7 +223,7 @@ func TestTokenHandler(t *testing.T) {
 		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required, password: required"}`},
 		{desc: "invalid email", reqBody: `{"email": "invalidemail", "password": "1234"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`},
 		{desc: "user does not exist", reqBody: `{"email": "notexit@gmail.com", "password": "1234"}`, status: http.StatusUnauthorized, want: `{"status":"error","message":"invalid email or password"}`},
-		{desc: "user not verified", reqBody: `{"email": "unverified@gmail.com", "password": "1234"}`, status: http.StatusUnauthorized, want: `{"status":"error","message":"user not verified"}`},
+		{desc: "user not verified", reqBody: `{"email": "unverified@gmail.com", "password": "1234"}`, status: http.StatusUnauthorized, want: `{"status":"error","message":"user not active"}`},
 		{desc: "invalid password", reqBody: `{"email": "invalidpassword@gmail.com", "password": "invalid"}`, status: http.StatusUnauthorized, want: `{"status":"error","message":"invalid email or password"}`},
 		{desc: "auth token generation failed", reqBody: `{"email": "authcodefailed@gmail.com", "password": "validpass"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"auth token generation failed"}`},
 		{desc: "success", reqBody: `{"email": "verified@gmail.com", "password": "1234"}`, status: http.StatusOK, want: fmt.Sprintf(`{"status":"success","data":{"token":"%s"}}`, TestToken)},
@@ -234,7 +234,7 @@ func TestTokenHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			req, _ := http.NewRequest(http.MethodPost, versionUrl("/api/auth/token"), strings.NewReader(test.reqBody))
+			req, _ := http.NewRequest(http.MethodPost, versionUrl("/auth/token"), strings.NewReader(test.reqBody))
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", userAuthToken))
 			w := httptest.NewRecorder()
 			app.server.Handler.ServeHTTP(w, req)
@@ -270,7 +270,7 @@ func TestDeleteUserHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			req, _ := http.NewRequest(http.MethodDelete, versionUrl("/api/auth/user"), strings.NewReader(test.reqBody))
+			req, _ := http.NewRequest(http.MethodDelete, versionUrl("/admin/auth/user"), strings.NewReader(test.reqBody))
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", adminAuthToken))
 			w := httptest.NewRecorder()
 			app.server.Handler.ServeHTTP(w, req)
@@ -290,7 +290,7 @@ func TestDeleteUserHandler(t *testing.T) {
 func TestHealthzHandler(t *testing.T) {
 	ctx := context.Background()
 	app := setupApp(t, ctx)
-	req, _ := http.NewRequest(http.MethodGet, versionUrl("/api/auth/healthz"), nil)
+	req, _ := http.NewRequest(http.MethodGet, versionUrl("/auth/healthz"), nil)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", userAuthToken))
 	w := httptest.NewRecorder()
 	app.server.Handler.ServeHTTP(w, req)

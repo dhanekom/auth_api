@@ -10,18 +10,18 @@ import (
 )
 
 const (
-	UserGetSQL = `SELECT user_id, email, password, is_verified, created_at, updated_at
+	UserGetSQL = `SELECT user_id, email, password, status, created_at, updated_at
 	FROM users
 	WHERE email = $1`
-	UserCreateSQL = `INSERT INTO users (user_id, email, password, is_verified) values ($1::uuid, $2, $3, $4)`
-	UserUpdateSQL = `UPDATE users set email = $1, password = $2, is_verified = $3, updated_at = now() WHERE user_id = $4`
+	UserCreateSQL = `INSERT INTO users (user_id, email, password, status) values ($1::uuid, $2, $3, $4)`
+	UserUpdateSQL = `UPDATE users set email = $1, password = $2, status = $3, updated_at = now() WHERE user_id = $4`
 	UserDeleteSQL = `DELETE FROM users where email = $1`
 
-	VerificationUpsertSQL = `INSERT INTO verification (email, verification_code, expires_at, attempts_remaining) 
-values ($1, $2, $3, $4)
+	VerificationUpsertSQL = `INSERT INTO verification (email, verification_type, verification_code, expires_at, attempts_remaining) 
+values ($1, $2, $3, $4, $5)
 on conflict (email)
-  do update set email = $1, verification_code = $2, expires_at = $3, attempts_remaining = $4;`
-	VerificationGetSQL    = `SELECT email, verification_code, expires_at, attempts_remaining, created_at, updated_at FROM verification WHERE email = $1`
+  do update set email = $1, verification_type = $2, verification_code = $3, expires_at = $4, attempts_remaining = $5;`
+	VerificationGetSQL    = `SELECT email, verification_type, verification_code, expires_at, attempts_remaining, created_at, updated_at FROM verification WHERE email = $1 and verification_type = $2`
 	VerificationDeleteSQL = `DELETE FROM verification WHERE email = $1`
 )
 
@@ -65,7 +65,7 @@ func (r *PostgresDBRepo) CreateUser(ctx context.Context, user *models.User) erro
 	ctxInner, cancel := context.WithTimeout(ctx, time.Second*queryTimeout)
 	defer cancel()
 
-	_, err := r.db.ExecContext(ctxInner, UserCreateSQL, user.UserID, user.Email, user.Password, user.IsVerified)
+	_, err := r.db.ExecContext(ctxInner, UserCreateSQL, user.UserID, user.Email, user.Password, user.Status)
 	if err != nil {
 		return fmt.Errorf("unable to insert user data: %w", err)
 	}
@@ -77,7 +77,7 @@ func (r *PostgresDBRepo) UpdateUser(ctx context.Context, user models.User) error
 	ctxInner, cancel := context.WithTimeout(ctx, time.Second*queryTimeout)
 	defer cancel()
 
-	_, err := r.db.ExecContext(ctxInner, UserUpdateSQL, user.Email, user.Password, user.IsVerified, user.UserID)
+	_, err := r.db.ExecContext(ctxInner, UserUpdateSQL, user.Email, user.Password, user.Status, user.UserID)
 	if err != nil {
 		return fmt.Errorf("unable to update user data: %w", err)
 	}
@@ -110,7 +110,7 @@ func (r *PostgresDBRepo) InsertOrUpdateVerification(ctx context.Context, verific
 	ctxInner, cancel := context.WithTimeout(ctx, time.Second*queryTimeout)
 	defer cancel()
 
-	_, err := r.db.ExecContext(ctxInner, VerificationUpsertSQL, verification.Email, verification.VerificationCode, verification.ExpiresAt, verification.AttemptsRemaining)
+	_, err := r.db.ExecContext(ctxInner, VerificationUpsertSQL, verification.Email, verification.VerificationType, verification.VerificationCode, verification.ExpiresAt, verification.AttemptsRemaining)
 	if err != nil {
 		return fmt.Errorf("unable to insert verification data: %w", err)
 	}
@@ -118,12 +118,12 @@ func (r *PostgresDBRepo) InsertOrUpdateVerification(ctx context.Context, verific
 	return nil
 }
 
-func (r *PostgresDBRepo) GetVerification(ctx context.Context, email string) (*models.Verification, error) {
+func (r *PostgresDBRepo) GetVerification(ctx context.Context, verificationType string, email string) (*models.Verification, error) {
 	ctxInner, cancel := context.WithTimeout(ctx, time.Second*queryTimeout)
 	defer cancel()
 
 	var verification models.Verification
-	err := r.db.GetContext(ctxInner, &verification, VerificationGetSQL, email)
+	err := r.db.GetContext(ctxInner, &verification, VerificationGetSQL, email, verificationType)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get verification data: %w", err)
 	}

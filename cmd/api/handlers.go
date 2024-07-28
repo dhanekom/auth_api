@@ -67,10 +67,10 @@ func (app *Configs) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Create user
 	user := &models.User{
-		UserID:     uuid.New().String(),
-		Email:      sv.Email,
-		Password:   string(hashedPasswordBytes),
-		IsVerified: false,
+		UserID:   uuid.New().String(),
+		Email:    sv.Email,
+		Password: string(hashedPasswordBytes),
+		Status:   models.UserStatusVerifyAccount,
 	}
 
 	err = app.DB.CreateUser(r.Context(), user)
@@ -107,7 +107,7 @@ func (app *Configs) GenerateVerificationCodeHandler(w http.ResponseWriter, r *ht
 		return
 	}
 
-	if user.IsVerified {
+	if user.IsVerified() {
 		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("user already verified"))
 		return
 	}
@@ -117,7 +117,7 @@ func (app *Configs) GenerateVerificationCodeHandler(w http.ResponseWriter, r *ht
 		return
 	}
 
-	code, err := app.Verifier.GenerateVerificationCode()
+	verificationCode, err := app.Verifier.GenerateVerificationCode()
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
 		return
@@ -125,7 +125,8 @@ func (app *Configs) GenerateVerificationCodeHandler(w http.ResponseWriter, r *ht
 
 	verification := models.Verification{
 		Email:             requestBody.Email,
-		VerificationCode:  code,
+		VerificationType:  models.VerificationTypeAccount,
+		VerificationCode:  verificationCode,
 		ExpiresAt:         time.Now().Add(time.Hour * 24),
 		AttemptsRemaining: app.Verifier.MaxRetries(),
 	}
@@ -139,7 +140,7 @@ func (app *Configs) GenerateVerificationCodeHandler(w http.ResponseWriter, r *ht
 		VerificationCode string `json:"verification_code"`
 	}
 
-	responseBody.VerificationCode = code
+	responseBody.VerificationCode = verificationCode
 
 	helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse(responseBody))
 }
@@ -177,9 +178,9 @@ func (app *Configs) VerifyUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	verification, err := app.DB.GetVerification(r.Context(), requestBody.Email)
+	verification, err := app.DB.GetVerification(r.Context(), models.VerificationTypeAccount, requestBody.Email)
 	if errors.Is(err, sql.ErrNoRows) {
-		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(fmt.Sprintf("no verification data found for user %s", requestBody.Email)))
+		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(fmt.Sprintf("no account verification data found for user %s", requestBody.Email)))
 		return
 	}
 
@@ -194,7 +195,7 @@ func (app *Configs) VerifyUserHandler(w http.ResponseWriter, r *http.Request) {
 			app.Logger.Error(err.Error())
 		}
 
-		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("verification code has expired"))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("user verification code has expired"))
 		return
 	}
 
@@ -206,11 +207,11 @@ func (app *Configs) VerifyUserHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("invalid verification code"))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("invalid user verification code"))
 		return
 	}
 
-	user.IsVerified = true
+	user.Status = models.UserStatusActive
 	if err := app.DB.UpdateUser(r.Context(), *user); err != nil {
 		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
 		return
@@ -255,8 +256,8 @@ func (app *Configs) TokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !user.IsVerified {
-		helpers.WriteJSON(w, http.StatusUnauthorized, helpers.ErrorResponse("user not verified"))
+	if user.Status != models.UserStatusActive {
+		helpers.WriteJSON(w, http.StatusUnauthorized, helpers.ErrorResponse("user not active"))
 		return
 	}
 
@@ -303,6 +304,156 @@ func (app *Configs) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	if !recordsDeleted {
 		helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse(map[string]any{"message": "user not found"}))
 		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse(nil))
+}
+
+func (app *Configs) ResetPasswordHandler(w http.ResponseWriter, r *http.Request) {
+	var requestBody struct {
+		Email string `json:"email"`
+		validator.Validator
+	}
+
+	if err := helpers.ReadJSON(w, r, &requestBody); err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("unable to parse json body"))
+		return
+	}
+
+	requestBody.CheckRequired(requestBody.Email, "email")
+	requestBody.CheckValue(validator.IsEmail(requestBody.Email), "email", "valid email required")
+	if !requestBody.Valid() {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(requestBody.Error()))
+		return
+	}
+
+	user, err := app.DB.GetUser(r.Context(), requestBody.Email)
+	if errors.Is(err, sql.ErrNoRows) {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("user does not exist"))
+		return
+	}
+
+	if user.Status != models.UserStatusActive {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("user is not active"))
+		return
+	}
+
+	verificationCode, err := app.Verifier.GenerateVerificationCode()
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
+		return
+	}
+
+	verification := models.Verification{
+		Email:             requestBody.Email,
+		VerificationType:  models.VerificationTypeAccount,
+		VerificationCode:  verificationCode,
+		ExpiresAt:         time.Now().Add(time.Hour * 24),
+		AttemptsRemaining: app.Verifier.MaxRetries(),
+	}
+
+	user.Status = models.UserStatusVerifyPasswordReset
+	if err := app.DB.UpdateUser(r.Context(), *user); err != nil {
+		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
+		return
+	}
+
+	if err := app.DB.InsertOrUpdateVerification(r.Context(), verification); err != nil {
+		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
+		return
+	}
+
+	var responseBody struct {
+		VerificationCode string `json:"verification_code"`
+	}
+
+	responseBody.VerificationCode = verificationCode
+
+	helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse(responseBody))
+}
+
+func (app *Configs) VerifyPasswordResetHandler(w http.ResponseWriter, r *http.Request) {
+	var requestBody struct {
+		Email            string `json:"email"`
+		Password         string `json:"password"`
+		VerificationCode string `json:"verification_code"`
+		validator.Validator
+	}
+
+	if err := helpers.ReadJSON(w, r, &requestBody); err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("unable to parse json body"))
+		return
+	}
+
+	requestBody.CheckRequired(requestBody.Email, "email")
+	requestBody.CheckRequired(requestBody.Password, "password")
+	requestBody.CheckValue(validator.IsEmail(requestBody.Email), "email", "valid email required")
+	requestBody.CheckRequired(requestBody.VerificationCode, "verification_code")
+
+	if !requestBody.Valid() {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(requestBody.Error()))
+		return
+	}
+
+	user, err := app.DB.GetUser(r.Context(), requestBody.Email)
+	if errors.Is(err, sql.ErrNoRows) {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("user does not exist"))
+		return
+	}
+
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
+		return
+	}
+
+	verification, err := app.DB.GetVerification(r.Context(), models.VerificationTypePasswordReset, requestBody.Email)
+	if errors.Is(err, sql.ErrNoRows) {
+		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(fmt.Sprintf("no password reset verification data found for user %s", requestBody.Email)))
+		return
+	}
+
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
+		return
+	}
+
+	if verification.ExpiresAt.Before(time.Now()) || verification.AttemptsRemaining <= 0 {
+		err := app.DB.DeleteVerification(r.Context(), requestBody.Email)
+		if err != nil {
+			app.Logger.Error(err.Error())
+		}
+
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("password reset verification code has expired"))
+		return
+	}
+
+	if requestBody.VerificationCode != verification.VerificationCode {
+		if verification.AttemptsRemaining >= 0 {
+			if err := app.DB.InsertOrUpdateVerification(r.Context(), *verification); err != nil {
+				helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
+				return
+			}
+		}
+
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("invalid password reset verification code"))
+		return
+	}
+
+	hashedPasswordBytes, err := app.PasswordEncryptor.GenerateHashedPassword(requestBody.Password)
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(err.Error()))
+		return
+	}
+
+	user.Status = models.UserStatusActive
+	user.Password = string(hashedPasswordBytes)
+	if err := app.DB.UpdateUser(r.Context(), *user); err != nil {
+		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
+		return
+	}
+
+	if err := app.DB.DeleteVerification(r.Context(), user.Email); err != nil {
+		app.Logger.Error(err.Error())
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse(nil))

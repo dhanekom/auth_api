@@ -2,8 +2,14 @@ package models
 
 import "time"
 
+const (
+	VerificationTypeAccount       = "account"
+	VerificationTypePasswordReset = "password_reset"
+)
+
 type Verification struct {
 	Email             string    `db:"email"`
+	VerificationType  string    `db:"verification_type"`
 	VerificationCode  string    `db:"verification_code"`
 	ExpiresAt         time.Time `db:"expires_at"`
 	AttemptsRemaining int       `db:"attempts_remaining"`
