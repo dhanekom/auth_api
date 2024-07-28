@@ -19,13 +19,13 @@ This api provides you with all the basic features required to manage user regist
 - Delete users (admin users only)
 
 ## Setup
-- Step 1: Download and install [Go](https://go.dev/doc/install) (requires Go 1.22 or higher)
-- Step 2: Clone this git repo
-- Step 3: Setup a Postgres DB (e.g using Docker)
-- Step 4: Run all the *.up.sql scripts in sequence on the Postgres DB
+- Step 1: Download and install [Go](https://go.dev/doc/install) (requires Go 1.22 or higher).
+- Step 2: Clone this git repo.
+- Step 3: Setup a Postgres DB (e.g using Docker).
+- Step 4: Run all the *.up.sql scripts in sequence on the Postgres DB.
 - Step 5: Configure environment variables - All configuration is done using environment variables.
 
-The application supports .env files(see a sample .env file below)
+The application supports .env files(see a sample .env file below).
 
 ```
 
@@ -47,7 +47,7 @@ AUTH_ADMIN_TOKEN_SECRET=supersecretkey
 
 ```
 
-- Step 6: Install and start docker - this application uses a [Postgres testcontainer](https://golang.testcontainers.org/modules/postgres/). The docker image will automatically be pulled when you run tests
+- Step 6: Install and start docker - this application uses a [Postgres testcontainer](https://golang.testcontainers.org/modules/postgres/). The docker image will automatically be pulled when you run tests.
 
 - Step 7: Build the application
 
