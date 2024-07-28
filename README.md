@@ -22,7 +22,7 @@ This api provides you with all the basic features required to manage user regist
 - Step 1: Download and install [Go](https://go.dev/doc/install) (requires Go 1.22 or higher)
 - Step 2: Clone this git repo
 - Step 3: Setup a Postgres DB (e.g using Docker)
-- Step 4: Run all the *.up.sql script in sequence on the Postgres DB
+- Step 4: Run all the *.up.sql scripts in sequence on the Postgres DB
 - Step 5: Configure environment variables - All configuration is done using environment variables.
 
 The application supports .env files(see a sample .env file below)
