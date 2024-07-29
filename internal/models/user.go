@@ -5,7 +5,7 @@ import "time"
 // 'verify_account', 'verify_password_reset', 'password_reset', 'active'
 const (
 	UserStatusVerifyAccount       = "verify_account"
-	UserStatusVerifyPasswordReset = "verify_password_reset"
+	UserStatusVerifyResetPassword = "verify_reset"
 	UserStatusActive              = "active"
 )
 

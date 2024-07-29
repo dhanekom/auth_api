@@ -1,11 +1,11 @@
 meta {
   name: Generate verification code
   type: http
-  seq: 1
+  seq: 2
 }
 
 get {
-  url: {{baseURL}}/v1/auth/verify
+  url: {{baseURL}}/v1/auth/verifyuser
   body: json
   auth: inherit
 }

@@ -3,8 +3,8 @@ package models
 import "time"
 
 const (
-	VerificationTypeAccount       = "account"
-	VerificationTypePasswordReset = "password_reset"
+	VerificationTypeAccount = "account"
+	VerificationTypeReset   = "reset"
 )
 
 type Verification struct {

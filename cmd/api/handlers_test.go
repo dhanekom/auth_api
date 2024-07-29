@@ -155,7 +155,7 @@ func TestGenerateVerificationCodeHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			req, _ := http.NewRequest(http.MethodGet, versionUrl("/auth/verify"), strings.NewReader(test.reqBody))
+			req, _ := http.NewRequest(http.MethodGet, versionUrl("/auth/verifyuser"), strings.NewReader(test.reqBody))
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", userAuthToken))
 			w := httptest.NewRecorder()
 			app.server.Handler.ServeHTTP(w, req)
@@ -195,7 +195,7 @@ func TestVerifyUserHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			req, _ := http.NewRequest(http.MethodPost, versionUrl("/auth/verify"), strings.NewReader(test.reqBody))
+			req, _ := http.NewRequest(http.MethodPost, versionUrl("/auth/verifyuser"), strings.NewReader(test.reqBody))
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", userAuthToken))
 			w := httptest.NewRecorder()
 			app.server.Handler.ServeHTTP(w, req)

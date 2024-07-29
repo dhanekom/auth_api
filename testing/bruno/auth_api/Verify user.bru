@@ -1,11 +1,11 @@
 meta {
   name: Verify user
   type: http
-  seq: 1
+  seq: 3
 }
 
 post {
-  url: {{baseURL}}/v1/auth/verify
+  url: {{baseURL}}/v1/auth/verifyuser
   body: json
   auth: inherit
 }

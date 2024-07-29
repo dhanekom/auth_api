@@ -107,13 +107,13 @@ func (app *Configs) GenerateVerificationCodeHandler(w http.ResponseWriter, r *ht
 		return
 	}
 
-	if user.IsVerified() {
-		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("user already verified"))
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(err.Error()))
 		return
 	}
 
-	if err != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(err.Error()))
+	if user.IsVerified() {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("user already verified"))
 		return
 	}
 
@@ -309,7 +309,7 @@ func (app *Configs) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse(nil))
 }
 
-func (app *Configs) ResetPasswordHandler(w http.ResponseWriter, r *http.Request) {
+func (app *Configs) ResetPasswordRequestHandler(w http.ResponseWriter, r *http.Request) {
 	var requestBody struct {
 		Email string `json:"email"`
 		validator.Validator
@@ -346,13 +346,13 @@ func (app *Configs) ResetPasswordHandler(w http.ResponseWriter, r *http.Request)
 
 	verification := models.Verification{
 		Email:             requestBody.Email,
-		VerificationType:  models.VerificationTypePasswordReset,
+		VerificationType:  models.VerificationTypeReset,
 		VerificationCode:  verificationCode,
 		ExpiresAt:         time.Now().Add(time.Hour * 24),
 		AttemptsRemaining: app.Verifier.MaxRetries(),
 	}
 
-	user.Status = models.UserStatusVerifyPasswordReset
+	user.Status = models.UserStatusVerifyResetPassword
 	if err := app.DB.UpdateUser(r.Context(), *user); err != nil {
 		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
 		return
@@ -372,7 +372,7 @@ func (app *Configs) ResetPasswordHandler(w http.ResponseWriter, r *http.Request)
 	helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse(responseBody))
 }
 
-func (app *Configs) VerifyPasswordResetHandler(w http.ResponseWriter, r *http.Request) {
+func (app *Configs) ResetPasswordHandler(w http.ResponseWriter, r *http.Request) {
 	var requestBody struct {
 		Email            string `json:"email"`
 		Password         string `json:"password"`
@@ -406,7 +406,7 @@ func (app *Configs) VerifyPasswordResetHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	verification, err := app.DB.GetVerification(r.Context(), models.VerificationTypePasswordReset, requestBody.Email)
+	verification, err := app.DB.GetVerification(r.Context(), models.VerificationTypeReset, requestBody.Email)
 	if errors.Is(err, sql.ErrNoRows) {
 		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(fmt.Sprintf("no password reset verification data found for user %s", requestBody.Email)))
 		return

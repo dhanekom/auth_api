@@ -3,17 +3,19 @@ package main
 import (
 	"auth_api/internal/middleware"
 	"net/http"
+
+	"github.com/justinas/alice"
 )
 
 func (app *Configs) routes() http.Handler {
 	router := http.NewServeMux()
 
 	router.HandleFunc("POST /auth/register", app.RegisterHandler)
-	router.HandleFunc("GET /auth/verify", app.GenerateVerificationCodeHandler)
-	router.HandleFunc("POST /auth/verify", app.VerifyUserHandler)
+	router.HandleFunc("GET /auth/verifyuser", app.GenerateVerificationCodeHandler)
+	router.HandleFunc("POST /auth/verifyuser", app.VerifyUserHandler)
 	router.HandleFunc("POST /auth/token", app.TokenHandler)
+	router.HandleFunc("POST /auth/resetpasswordrequest", app.ResetPasswordRequestHandler)
 	router.HandleFunc("POST /auth/resetpassword", app.ResetPasswordHandler)
-	router.HandleFunc("POST /auth/verifypassword", app.VerifyPasswordResetHandler)
 	router.HandleFunc("GET /auth/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -26,10 +28,11 @@ func (app *Configs) routes() http.Handler {
 	v1 := http.NewServeMux()
 	v1.Handle("/v1/", http.StripPrefix("/v1", router))
 
-	stack := middleware.CreateStack(
-		middleware.Logging,
-		middleware.Auth([]string{app.UserTokenSecret, app.AdminTokenSecret}),
-	)
+	// stack := middleware.CreateStack(
+	// 	middleware.Logging,
+	// 	middleware.Auth([]string{app.UserTokenSecret, app.AdminTokenSecret}),
+	// )
 
-	return stack(v1)
+	return alice.New(middleware.Logging, middleware.Auth([]string{app.UserTokenSecret, app.AdminTokenSecret}), middleware.RateLimiter).Then(v1)
+	//stack(v1)
 }
