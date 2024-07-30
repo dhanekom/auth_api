@@ -240,7 +240,7 @@ func (app *Configs) TokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	user, err := app.DB.GetUser(r.Context(), body.Email)
 	if errors.Is(err, sql.ErrNoRows) {
-		helpers.WriteJSON(w, http.StatusUnauthorized, helpers.ErrorResponse("invalid email or password"))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("invalid email or password"))
 		return
 	}
 
@@ -250,19 +250,19 @@ func (app *Configs) TokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if user.Status != models.UserStatusActive {
-		helpers.WriteJSON(w, http.StatusUnauthorized, helpers.ErrorResponse("user not active"))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("user not active"))
 		return
 	}
 
 	err = app.PasswordEncryptor.CompareHashAndPassword([]byte(user.Password), []byte(body.Password))
 	if err != nil {
-		helpers.WriteJSON(w, http.StatusUnauthorized, helpers.ErrorResponse("invalid email or password"))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("invalid email or password"))
 		return
 	}
 
 	tokenString, err := app.TokenUtils.GenerateToken(user.UserID, 24)
 	if err != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("auth token generation failed"))
+		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse("auth token generation failed"))
 		return
 	}
 
@@ -492,12 +492,12 @@ func (app *Configs) UpdatePasswordHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	if user.Status != models.UserStatusActive {
-		helpers.WriteJSON(w, http.StatusUnauthorized, helpers.ErrorResponse("user not active"))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("user not active"))
 		return
 	}
 	err = app.PasswordEncryptor.CompareHashAndPassword([]byte(user.Password), []byte(requestBody.OldPassword))
 	if err != nil {
-		helpers.WriteJSON(w, http.StatusUnauthorized, helpers.ErrorResponse("old password is invalid"))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("old password is invalid"))
 		return
 	}
 
@@ -513,7 +513,7 @@ func (app *Configs) UpdatePasswordHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse("successfully updated password"))
+	helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse(map[string]any{"message": "successfully updated password"}))
 }
 
 func (app *Configs) UserRoleHandler(w http.ResponseWriter, r *http.Request) {
@@ -547,10 +547,10 @@ func (app *Configs) UserRoleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var respBody struct {
-		Role string
+		Role string `json:"role"`
 	}
 
 	respBody.Role = user.Role
 
-	helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse(requestBody))
+	helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse(respBody))
 }

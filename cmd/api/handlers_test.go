@@ -222,10 +222,10 @@ func TestTokenHandler(t *testing.T) {
 		{desc: "invalid request json body", reqBody: ``, status: http.StatusBadRequest, want: `{"status":"error","message":"unable to parse json body"}`},
 		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required, password: required"}`},
 		{desc: "invalid email", reqBody: `{"email": "invalidemail", "password": "1234"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`},
-		{desc: "user does not exist", reqBody: `{"email": "notexit@gmail.com", "password": "1234"}`, status: http.StatusUnauthorized, want: `{"status":"error","message":"invalid email or password"}`},
-		{desc: "user not verified", reqBody: `{"email": "unverified@gmail.com", "password": "1234"}`, status: http.StatusUnauthorized, want: `{"status":"error","message":"user not active"}`},
-		{desc: "invalid password", reqBody: `{"email": "invalidpassword@gmail.com", "password": "invalid"}`, status: http.StatusUnauthorized, want: `{"status":"error","message":"invalid email or password"}`},
-		{desc: "auth token generation failed", reqBody: `{"email": "authcodefailed@gmail.com", "password": "validpass"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"auth token generation failed"}`},
+		{desc: "user does not exist", reqBody: `{"email": "notexit@gmail.com", "password": "1234"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"invalid email or password"}`},
+		{desc: "user not verified", reqBody: `{"email": "unverified@gmail.com", "password": "1234"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user not active"}`},
+		{desc: "invalid password", reqBody: `{"email": "invalidpassword@gmail.com", "password": "invalid"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"invalid email or password"}`},
+		{desc: "auth token generation failed", reqBody: `{"email": "authcodefailed@gmail.com", "password": "validpass"}`, status: http.StatusInternalServerError, want: `{"status":"error","message":"auth token generation failed"}`},
 		{desc: "success", reqBody: `{"email": "verified@gmail.com", "password": "1234"}`, status: http.StatusOK, want: fmt.Sprintf(`{"status":"success","data":{"token":"%s"}}`, TestToken)},
 	}
 
@@ -358,6 +358,77 @@ func TestResetPasswordHandler(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			req, _ := http.NewRequest(http.MethodPut, versionUrl("/auth/resetpassword"), strings.NewReader(test.reqBody))
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", userAuthToken))
+			w := httptest.NewRecorder()
+			app.server.Handler.ServeHTTP(w, req)
+
+			resp := w.Result()
+			json, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Errorf("didn't expect error but got %s", err)
+			}
+
+			assert.Equal(t, test.status, resp.StatusCode)
+			assert.Equal(t, test.want, string(json))
+		})
+	}
+}
+
+func TestUpdatePasswordHandler(t *testing.T) {
+	tests := []struct {
+		desc    string
+		reqBody string
+		status  int
+		want    string
+	}{
+		{desc: "invalid request json body", reqBody: ``, status: http.StatusBadRequest, want: `{"status":"error","message":"unable to parse json body"}`},
+		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required, old password: required, new password: required"}`},
+		{desc: "invalid email", reqBody: `{"email": "invalidemail", "old_password": "1234", "new_password": "2345"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`},
+		{desc: "user does not exist", reqBody: `{"email": "notexists@gmail.com", "old_password": "1234", "new_password": "2345"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user does not exist"}`},
+		{desc: "user not active", reqBody: `{"email": "unverified@gmail.com", "old_password": "1234", "new_password": "2345"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user not active"}`},
+		{desc: "success", reqBody: `{"email": "verified@gmail.com", "old_password": "9999", "new_password": "2345"}`, status: http.StatusOK, want: `{"status":"success","data":{"message":"successfully updated password"}}`},
+	}
+	ctx := context.Background()
+	app := setupApp(t, ctx)
+
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			req, _ := http.NewRequest(http.MethodPost, versionUrl("/auth/updatepassword"), strings.NewReader(test.reqBody))
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", userAuthToken))
+			w := httptest.NewRecorder()
+			app.server.Handler.ServeHTTP(w, req)
+
+			resp := w.Result()
+			json, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Errorf("didn't expect error but got %s", err)
+			}
+
+			assert.Equal(t, test.status, resp.StatusCode)
+			assert.Equal(t, test.want, string(json))
+		})
+	}
+}
+
+func TestUserRoleHandler(t *testing.T) {
+	tests := []struct {
+		desc    string
+		reqBody string
+		status  int
+		want    string
+	}{
+		{desc: "invalid request json body", reqBody: ``, status: http.StatusBadRequest, want: `{"status":"error","message":"unable to parse json body"}`},
+		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required"}`},
+		{desc: "invalid email", reqBody: `{"email": "invalidemail"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`},
+		{desc: "user does not exist", reqBody: `{"email": "notexists@gmail.com"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user does not exist"}`},
+		{desc: "success", reqBody: `{"email": "verified@gmail.com"}`, status: http.StatusOK, want: `{"status":"success","data":{"Role":"USER"}}`},
+	}
+	ctx := context.Background()
+	app := setupApp(t, ctx)
+
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			req, _ := http.NewRequest(http.MethodGet, versionUrl("/auth/role"), strings.NewReader(test.reqBody))
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", userAuthToken))
 			w := httptest.NewRecorder()
 			app.server.Handler.ServeHTTP(w, req)
