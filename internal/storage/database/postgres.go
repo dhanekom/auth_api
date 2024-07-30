@@ -10,11 +10,11 @@ import (
 )
 
 const (
-	UserGetSQL = `SELECT user_id, email, password, status, created_at, updated_at
+	UserGetSQL = `SELECT user_id, email, password, status, role, created_at, updated_at
 	FROM users
 	WHERE email = $1`
-	UserCreateSQL = `INSERT INTO users (user_id, email, password, status) values ($1::uuid, $2, $3, $4)`
-	UserUpdateSQL = `UPDATE users set email = $1, password = $2, status = $3, updated_at = now() WHERE user_id = $4`
+	UserCreateSQL = `INSERT INTO users (user_id, email, password, status, role) values ($1::uuid, $2, $3, $4, $5)`
+	UserUpdateSQL = `UPDATE users set email = $1, password = $2, status = $3, role = $4, updated_at = now() WHERE user_id = $5`
 	UserDeleteSQL = `DELETE FROM users where email = $1`
 
 	VerificationUpsertSQL = `INSERT INTO verification (email, verification_type, verification_code, expires_at, attempts_remaining) 
@@ -65,7 +65,7 @@ func (r *PostgresDBRepo) CreateUser(ctx context.Context, user *models.User) erro
 	ctxInner, cancel := context.WithTimeout(ctx, time.Second*queryTimeout)
 	defer cancel()
 
-	_, err := r.db.ExecContext(ctxInner, UserCreateSQL, user.UserID, user.Email, user.Password, user.Status)
+	_, err := r.db.ExecContext(ctxInner, UserCreateSQL, user.UserID, user.Email, user.Password, user.Status, user.Role)
 	if err != nil {
 		return fmt.Errorf("unable to insert user data: %w", err)
 	}
@@ -77,7 +77,7 @@ func (r *PostgresDBRepo) UpdateUser(ctx context.Context, user models.User) error
 	ctxInner, cancel := context.WithTimeout(ctx, time.Second*queryTimeout)
 	defer cancel()
 
-	_, err := r.db.ExecContext(ctxInner, UserUpdateSQL, user.Email, user.Password, user.Status, user.UserID)
+	_, err := r.db.ExecContext(ctxInner, UserUpdateSQL, user.Email, user.Password, user.Status, user.Role, user.UserID)
 	if err != nil {
 		return fmt.Errorf("unable to update user data: %w", err)
 	}

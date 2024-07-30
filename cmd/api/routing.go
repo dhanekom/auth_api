@@ -14,8 +14,10 @@ func (app *Configs) routes() http.Handler {
 	router.HandleFunc("GET /auth/verifyuser", app.GenerateVerificationCodeHandler)
 	router.HandleFunc("POST /auth/verifyuser", app.VerifyUserHandler)
 	router.HandleFunc("POST /auth/token", app.TokenHandler)
-	router.HandleFunc("POST /auth/resetpasswordrequest", app.ResetPasswordRequestHandler)
-	router.HandleFunc("POST /auth/resetpassword", app.ResetPasswordHandler)
+	router.HandleFunc("POST /auth/resetpassword", app.ResetPasswordRequestHandler)
+	router.HandleFunc("PUT /auth/resetpassword", app.ResetPasswordHandler)
+	router.HandleFunc("POST /auth/updatepassword", app.UpdatePasswordHandler)
+	router.HandleFunc("GET /auth/role", app.UserRoleHandler)
 	router.HandleFunc("GET /auth/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})

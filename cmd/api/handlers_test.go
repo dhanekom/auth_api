@@ -108,10 +108,10 @@ func TestRegisterHandler(t *testing.T) {
 		want    string
 	}{
 		{desc: "invalid request json body", reqBody: ``, status: http.StatusBadRequest, want: `{"status":"error","message":"unable to parse json body"}`},
-		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required, password: required"}`},
-		{desc: "invalid email", reqBody: `{"email": "invalidemail", "password": "1234"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`},
-		{desc: "user already exists", reqBody: `{"email": "unverified@gmail.com", "password": "1234"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user already exists"}`},
-		{desc: "success", reqBody: `{"email": "notexist@gmail.com", "password": "1234"}`, status: http.StatusOK, want: `{"status":"success","data":{"message":"successfully created user"}}`},
+		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required, password: required, role: required"}`},
+		{desc: "invalid email", reqBody: `{"email": "invalidemail", "password": "1234", "role": "USER"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`},
+		{desc: "user already exists", reqBody: `{"email": "unverified@gmail.com", "password": "1234", "role": "USER"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user already exists"}`},
+		{desc: "success", reqBody: `{"email": "notexist@gmail.com", "password": "1234", "role": "USER"}`, status: http.StatusOK, want: `{"status":"success","data":{"message":"successfully created user"}}`},
 	}
 	ctx := context.Background()
 	app := setupApp(t, ctx)
@@ -144,7 +144,7 @@ func TestGenerateVerificationCodeHandler(t *testing.T) {
 	}{
 		{desc: "invalid request json body", reqBody: ``, status: http.StatusBadRequest, want: `{"status":"error","message":"unable to parse json body"}`},
 		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required"}`},
-		{desc: "invalid email", reqBody: `{"email": "invalidemail", "password": "1234"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`},
+		{desc: "invalid email", reqBody: `{"email": "invalidemail", "password": "1234", "role": "USER"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`},
 		{desc: "user does not exist", reqBody: `{"email": "notexist@gmail.com"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user does not exist"}`},
 		{desc: "already verified", reqBody: `{"email": "verified@gmail.com"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user already verified"}`},
 		{desc: "success", reqBody: `{"email": "unverified@gmail.com"}`, status: http.StatusOK, want: `{"status":"success","data":{"verification_code":"ABCDEF"}}`},
@@ -297,6 +297,81 @@ func TestHealthzHandler(t *testing.T) {
 
 	resp := w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestResetPasswordRequestHandler(t *testing.T) {
+	tests := []struct {
+		desc    string
+		reqBody string
+		status  int
+		want    string
+	}{
+		{desc: "invalid request json body", reqBody: ``, status: http.StatusBadRequest, want: `{"status":"error","message":"unable to parse json body"}`},
+		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required"}`},
+		{desc: "invalid email", reqBody: `{"email": "invalidemail"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`},
+		{desc: "user does not exist", reqBody: `{"email": "notexist@gmail.com"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user does not exist"}`},
+		{desc: "user not active", reqBody: `{"email": "unverified@gmail.com"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user is not active"}`},
+		{desc: "success", reqBody: `{"email": "resetpasswordrequest@gmail.com"}`, status: http.StatusOK, want: `{"status":"success","data":{"verification_code":"ABCDEF"}}`},
+	}
+
+	ctx := context.Background()
+	app := setupApp(t, ctx)
+
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			req, _ := http.NewRequest(http.MethodPost, versionUrl("/auth/resetpassword"), strings.NewReader(test.reqBody))
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", userAuthToken))
+			w := httptest.NewRecorder()
+			app.server.Handler.ServeHTTP(w, req)
+
+			resp := w.Result()
+			json, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Errorf("didn't expect error but got %s", err)
+			}
+
+			assert.Equal(t, test.status, resp.StatusCode)
+			assert.Equal(t, test.want, string(json))
+		})
+	}
+}
+
+func TestResetPasswordHandler(t *testing.T) {
+	tests := []struct {
+		desc    string
+		reqBody string
+		status  int
+		want    string
+	}{
+		{desc: "invalid request json body", reqBody: ``, status: http.StatusBadRequest, want: `{"status":"error","message":"unable to parse json body"}`},
+		{desc: "missing parameters", reqBody: `{}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: required, password: required, verification_code: required"}`},
+		{desc: "invalid email", reqBody: `{"email": "invalidemail", "password": "invalidpass", "verification_code": "ABCDEF"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"email: valid email required"}`},
+		{desc: "user does not exist", reqBody: `{"email": "notexist@gmail.com", "password": "invalidpass", "verification_code": "ABCDEF"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"user does not exist"}`},
+		{desc: "user status is not verify_reset", reqBody: `{"email": "notverifyresetstatus@gmail.com", "password": "invalidpass", "verification_code": "ABCDEF"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"password reset must first be requested"}`},
+		{desc: "no password reset verification data", reqBody: `{"email": "noresetverification@gmail.com", "password": "invalidpass", "verification_code": "ABCDEF"}`, status: http.StatusBadRequest, want: `{"status":"error","message":"no password reset verification data found for user noresetverification@gmail.com"}`},
+		{desc: "success", reqBody: `{"email": "resetpassword@gmail.com", "password": "validpass", "verification_code": "ABCDEF"}`, status: http.StatusOK, want: `{"status":"success"}`},
+	}
+
+	ctx := context.Background()
+	app := setupApp(t, ctx)
+
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			req, _ := http.NewRequest(http.MethodPut, versionUrl("/auth/resetpassword"), strings.NewReader(test.reqBody))
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", userAuthToken))
+			w := httptest.NewRecorder()
+			app.server.Handler.ServeHTTP(w, req)
+
+			resp := w.Result()
+			json, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Errorf("didn't expect error but got %s", err)
+			}
+
+			assert.Equal(t, test.status, resp.StatusCode)
+			assert.Equal(t, test.want, string(json))
+		})
+	}
 }
 
 func GetTestEnv(key string) string {

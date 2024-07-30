@@ -15,39 +15,31 @@ import (
 
 // RegisterHandler create a user account with a hashed password
 func (app *Configs) RegisterHandler(w http.ResponseWriter, r *http.Request) {
-	var body struct {
+	var requestBody struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
-	}
-
-	type signupValidator struct {
-		Email    string
-		Password string
+		Role     string `json:"role"`
 		validator.Validator
 	}
 
-	if err := helpers.ReadJSON(w, r, &body); err != nil {
+	if err := helpers.ReadJSON(w, r, &requestBody); err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("unable to parse json body"))
 		return
 	}
 
-	sv := signupValidator{
-		Email:    body.Email,
-		Password: body.Password,
-	}
-
 	// validate data
-	sv.CheckRequired(sv.Email, "email")
-	sv.CheckRequired(sv.Password, "password")
-	sv.CheckValue(validator.IsEmail(sv.Email), "email", "valid email required")
+	requestBody.CheckRequired(requestBody.Email, "email")
+	requestBody.CheckRequired(requestBody.Password, "password")
+	requestBody.CheckRequired(requestBody.Role, "role")
+	requestBody.CheckValue(validator.IsEmail(requestBody.Email), "email", "valid email required")
 
-	if !sv.Valid() {
-		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(sv.Error()))
+	if !requestBody.Valid() {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(requestBody.Error()))
 		return
 	}
 
 	// check if account already exists in DB
-	users, err := app.DB.GetUsers(r.Context(), sv.Email)
+	users, err := app.DB.GetUsers(r.Context(), requestBody.Email)
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(err.Error()))
 		return
@@ -59,7 +51,7 @@ func (app *Configs) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Hash and salt password
-	hashedPasswordBytes, err := app.PasswordEncryptor.GenerateHashedPassword(sv.Password)
+	hashedPasswordBytes, err := app.PasswordEncryptor.GenerateHashedPassword(requestBody.Password)
 	if err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(err.Error()))
 		return
@@ -68,9 +60,10 @@ func (app *Configs) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	// Create user
 	user := &models.User{
 		UserID:   uuid.New().String(),
-		Email:    sv.Email,
+		Email:    requestBody.Email,
 		Password: string(hashedPasswordBytes),
 		Status:   models.UserStatusVerifyAccount,
+		Role:     requestBody.Role,
 	}
 
 	err = app.DB.CreateUser(r.Context(), user)
@@ -406,9 +399,14 @@ func (app *Configs) ResetPasswordHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if user.Status != models.UserStatusVerifyResetPassword {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("password reset must first be requested"))
+		return
+	}
+
 	verification, err := app.DB.GetVerification(r.Context(), models.VerificationTypeReset, requestBody.Email)
 	if errors.Is(err, sql.ErrNoRows) {
-		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(fmt.Sprintf("no password reset verification data found for user %s", requestBody.Email)))
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(fmt.Sprintf("no password reset verification data found for user %s", requestBody.Email)))
 		return
 	}
 
@@ -457,4 +455,102 @@ func (app *Configs) ResetPasswordHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse(nil))
+}
+
+func (app *Configs) UpdatePasswordHandler(w http.ResponseWriter, r *http.Request) {
+	var requestBody struct {
+		Email       string `json:"email"`
+		OldPassword string `json:"old_password"`
+		NewPassword string `json:"new_password"`
+		validator.Validator
+	}
+
+	if err := helpers.ReadJSON(w, r, &requestBody); err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("unable to parse json body"))
+		return
+	}
+
+	requestBody.CheckRequired(requestBody.Email, "email")
+	requestBody.CheckRequired(requestBody.OldPassword, "old password")
+	requestBody.CheckRequired(requestBody.NewPassword, "new password")
+	requestBody.CheckValue(validator.IsEmail(requestBody.Email), "email", "valid email required")
+
+	if !requestBody.Valid() {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(requestBody.Error()))
+		return
+	}
+
+	user, err := app.DB.GetUser(r.Context(), requestBody.Email)
+	if errors.Is(err, sql.ErrNoRows) {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("user does not exist"))
+		return
+	}
+
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
+		return
+	}
+
+	if user.Status != models.UserStatusActive {
+		helpers.WriteJSON(w, http.StatusUnauthorized, helpers.ErrorResponse("user not active"))
+		return
+	}
+	err = app.PasswordEncryptor.CompareHashAndPassword([]byte(user.Password), []byte(requestBody.OldPassword))
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusUnauthorized, helpers.ErrorResponse("old password is invalid"))
+		return
+	}
+
+	hashedPasswordBytes, err := app.PasswordEncryptor.GenerateHashedPassword(requestBody.NewPassword)
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(err.Error()))
+		return
+	}
+
+	user.Password = string(hashedPasswordBytes)
+	if err := app.DB.UpdateUser(r.Context(), *user); err != nil {
+		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse("successfully updated password"))
+}
+
+func (app *Configs) UserRoleHandler(w http.ResponseWriter, r *http.Request) {
+	var requestBody struct {
+		Email string `json:"email"`
+		validator.Validator
+	}
+
+	if err := helpers.ReadJSON(w, r, &requestBody); err != nil {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("unable to parse json body"))
+		return
+	}
+
+	requestBody.CheckRequired(requestBody.Email, "email")
+	requestBody.CheckValue(validator.IsEmail(requestBody.Email), "email", "valid email required")
+
+	if !requestBody.Valid() {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse(requestBody.Error()))
+		return
+	}
+
+	user, err := app.DB.GetUser(r.Context(), requestBody.Email)
+	if errors.Is(err, sql.ErrNoRows) {
+		helpers.WriteJSON(w, http.StatusBadRequest, helpers.ErrorResponse("user does not exist"))
+		return
+	}
+
+	if err != nil {
+		helpers.WriteJSON(w, http.StatusInternalServerError, helpers.ErrorResponse(err.Error()))
+		return
+	}
+
+	var respBody struct {
+		Role string
+	}
+
+	respBody.Role = user.Role
+
+	helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse(requestBody))
 }

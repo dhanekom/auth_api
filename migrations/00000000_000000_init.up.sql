@@ -3,6 +3,7 @@ CREATE TABLE if not exists public.users (
   email varchar(255) not null,
   password text not null,
   status varchar(50) not null check(status in ('verify_account', 'verify_reset', 'active')),
+  role varchar(50) not null,
   created_at TIMESTAMP not null DEFAULT now(),
   updated_at TIMESTAMP not null DEFAULT now(),
   UNIQUE(email)
