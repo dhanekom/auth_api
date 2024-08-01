@@ -17,13 +17,13 @@ func (app *Configs) routes() http.Handler {
 	router.HandleFunc("POST /auth/resetpassword", app.ResetPasswordRequestHandler)
 	router.HandleFunc("PUT /auth/resetpassword", app.ResetPasswordHandler)
 	router.HandleFunc("POST /auth/updatepassword", app.UpdatePasswordHandler)
-	router.HandleFunc("GET /auth/role", app.UserRoleHandler)
 	router.HandleFunc("GET /auth/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
 	adminRouter := http.NewServeMux()
 	adminRouter.HandleFunc("DELETE /admin/auth/user", app.DeleteUserHandler)
+	adminRouter.HandleFunc("GET /auth/role", app.UserRoleHandler)
 
 	router.Handle("/admin/", middleware.Admin(app.AdminTokenSecret, adminRouter))
 

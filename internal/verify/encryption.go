@@ -13,7 +13,7 @@ type PasswordEncryptorBcrypt struct {
 }
 
 func (e PasswordEncryptorBcrypt) GenerateHashedPassword(password string) ([]byte, error) {
-	return bcrypt.GenerateFromPassword([]byte(password), 14)
+	return bcrypt.GenerateFromPassword([]byte(password), 12)
 }
 
 func (e PasswordEncryptorBcrypt) CompareHashAndPassword(hashedPassword, password []byte) error {

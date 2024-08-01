@@ -8,6 +8,11 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+var (
+	ErrorTokenValidationFailed = errors.New("token validation failed")
+	ErrorTokenInvalid          = errors.New("invalid token")
+)
+
 type TokenUtils interface {
 	Setup(secret string)
 	GenerateToken(userID string, hours int) (string, error)
@@ -36,7 +41,7 @@ func (t *JWTTokenUtils) GenerateToken(userID string, hours int) (string, error) 
 	return tokenString, nil
 }
 
-func (t *JWTTokenUtils) ValidateToken(tokenStr string) error {
+func (t *JWTTokenUtils) ValidateToken(tokenStr string) (error) {
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -46,11 +51,11 @@ func (t *JWTTokenUtils) ValidateToken(tokenStr string) error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("token validation failed: %w", err)
+		return ErrorTokenValidationFailed
 	}
 
 	if !token.Valid {
-		return errors.New("invalid token")
+		return ErrorTokenInvalid
 	}
 
 	return nil
