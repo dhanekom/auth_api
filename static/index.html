@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- <script src="https://unpkg.com/htmx.org@2.0.1" integrity="sha384-QWGpdj554B4ETpJJC9z+ZHJcA/i59TyjxEPXiiUgN2WmTyV5OEZWCD6gQhgkdpB/" crossorigin="anonymous"></script> -->
+  <!-- <script src="https://unpkg.com/htmx.org@2.0.1"></script> -->
+  <title>Document</title>
+</head>
+<body>
+  <div hx-target="this" hx-swap="outerHTML">
+    <div><label>First Name</label>: Joe</div>
+    <div><label>Last Name</label>: Blow</div>
+    <div><label>Email</label>: joe@blow.com</div>
+    <button hx-get="http://127.0.0.1:80/v1/htmx/form" class="btn primary">
+    Click To Edit
+    </button>
+  </div>
+</body>
+<script src="https://unpkg.com/htmx.org"></script>
+</html>

@@ -1,0 +1,17 @@
+meta {
+  name: form
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseURL}}/v1/htmx/form
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "test@gmail.com"
+  }
+}
